@@ -18,13 +18,17 @@ npm install
    - `anon public` キー
    - `service_role` キー(サーバー専用。**絶対に公開しない**)
 
-### 3. データベースを構築する
+### 3. データベース / Storage を構築する
 
-Supabase ダッシュボードの **SQL Editor** を開き、[`supabase/schema.sql`](supabase/schema.sql) の内容をそのまま貼り付けて実行してください。以下が作成されます。
+Supabase ダッシュボードの **SQL Editor** を開き、[`supabase/schema.sql`](supabase/schema.sql) の内容をそのまま貼り付けて実行してください。何度実行しても安全(冪等)です。以下が作成・更新されます。
 
-- `profiles` テーブル(名前・都道府県・審判級・活動カテゴリー・審判歴)+ RLS ポリシー
+- `profiles` テーブル(ユーザー名・表示名・都道府県・審判級・活動カテゴリー・審判歴・アイコン情報)+ RLS ポリシー
+  - `username` は一意(未設定の間は `NULL` を許可し、アプリ側の入力必須チェックと組み合わせています)
 - `matches` テーブル(試合記録)+ RLS ポリシー(自分のデータのみ読み書き可能)
 - 新規ユーザー登録時に `profiles` 行を自動作成するトリガー
+- **Storage バケット `profile-icons`**(公開読み取り・5MBまで・JPG/PNGのみ)+ 「自分のフォルダ(`{user_id}/...`)にのみアップロード・更新・削除できる」RLS ポリシー
+
+ダッシュボードで手動作成する手順は不要です。SQL 実行だけで Storage バケットと RLS ポリシーまで含めて構築されます。
 
 ### 4. Google ログインを有効化する(任意)
 
@@ -68,7 +72,9 @@ npm run dev
 - **ダッシュボード**: 今月/今年の試合数、担当ポジション別回数、自己評価平均、最近の記録、課題キーワード — [`src/app/dashboard`](src/app/dashboard)
 - **AI振り返り(ルールベース)**: 記録内容からキーワードを検出して簡易フィードバックを表示。将来 OpenAI 等の実 API に差し替えやすいよう関数を分離しています — [`src/lib/aiReflection.ts`](src/lib/aiReflection.ts)
 - **CSV出力**: UTF-8 BOM付きでExcelでも文字化けせずに開けます — [`src/lib/csv.ts`](src/lib/csv.ts)
-- **プロフィール/設定**: 名前・都道府県・審判級・活動カテゴリー・審判歴の編集、データエクスポート、アカウント削除 — [`src/app/settings`](src/app/settings)
+- **プロフィール/設定**: ユーザー名(必須・一意)・表示名・アイコン(デフォルト10種 or 画像アップロード)・都道府県・審判級・活動カテゴリー・審判歴の編集、データエクスポート — [`src/app/settings`](src/app/settings)
+- **初回ログイン時のプロフィール誘導**: ユーザー名が未設定のアカウントは、どのページにアクセスしてもプロフィール設定画面へ誘導されます — [`src/components/ProfileGuard.tsx`](src/components/ProfileGuard.tsx)
+- **プロフィールアイコン**: バスケットボール関連のデフォルトアイコン10種から選択、または JPG/PNG(5MBまで)を Supabase Storage(`profile-icons` バケット)にアップロードして使用できます — [`src/components/AvatarIcons.tsx`](src/components/AvatarIcons.tsx)
 - **PWA**: ホーム画面に追加してアプリのように起動可能。manifest / service worker / アイコンを実装済み — [`src/app/manifest.ts`](src/app/manifest.ts)、[`public/sw.js`](public/sw.js)
 
 ## 認証まわりのアーキテクチャ
@@ -79,9 +85,11 @@ npm run dev
 - `src/lib/supabase/admin.ts` — `service_role` キーを使うサーバー専用クライアント。アカウント削除 API (`src/app/api/account/delete/route.ts`) からのみ使用します。
 - `src/components/AuthProvider.tsx` — セッション状態を保持し、ログイン検知時にローカルデータ移行を1回だけ実行します。
 
-## アカウント削除の仕組み
+## アカウント削除について
 
-`profiles` と `matches` テーブルは `auth.users` への外部キーに `on delete cascade` を設定しているため、`supabase.auth.admin.deleteUser()` を呼ぶだけで関連データもまとめて削除されます。この呼び出しは `service_role` キーが必要なため、クライアントから直接実行せず `src/app/api/account/delete/route.ts` (サーバー専用の Route Handler) 経由で行います。
+設定画面に「アカウントを削除する」ボタンがありますが、**現時点では確認ダイアログ+案内メッセージのみで、実際の削除処理は行いません**(UIのみ)。
+
+将来削除処理を有効化する際は、`profiles` と `matches` テーブルが `auth.users` への外部キーに `on delete cascade` を設定済みなので、`supabase.auth.admin.deleteUser()` を呼ぶだけで関連データもまとめて削除できます。この呼び出しには `service_role` キーが必要なため、クライアントから直接実行せず `src/app/api/account/delete/route.ts` (サーバー専用の Route Handler、実装済み・未接続)経由で行う設計です。
 
 ## スクリプト
 

@@ -4,31 +4,43 @@ export type Database = {
       profiles: {
         Row: {
           id: string;
+          username: string | null;
           name: string;
           prefecture: string;
           referee_grade: string;
           categories: string[];
           years_of_experience: number | null;
+          avatar_type: string;
+          avatar_key: string;
+          avatar_url: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id: string;
+          username?: string | null;
           name?: string;
           prefecture?: string;
           referee_grade?: string;
           categories?: string[];
           years_of_experience?: number | null;
+          avatar_type?: string;
+          avatar_key?: string;
+          avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
+          username?: string | null;
           name?: string;
           prefecture?: string;
           referee_grade?: string;
           categories?: string[];
           years_of_experience?: number | null;
+          avatar_type?: string;
+          avatar_key?: string;
+          avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };

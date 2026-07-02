@@ -1,29 +1,70 @@
+import type { DefaultAvatarKey } from "@/components/AvatarIcons";
 import { createClient } from "@/lib/supabase/client";
 
+export type AvatarType = "default" | "custom";
+
 export type Profile = {
+  username: string;
   name: string;
   prefecture: string;
   refereeGrade: string;
   categories: string[];
   yearsOfExperience: number | null;
+  avatarType: AvatarType;
+  avatarKey: string;
+  avatarUrl: string | null;
 };
 
 type ProfileRow = {
+  username: string | null;
   name: string;
   prefecture: string;
   referee_grade: string;
   categories: string[];
   years_of_experience: number | null;
+  avatar_type: string;
+  avatar_key: string;
+  avatar_url: string | null;
 };
 
 function rowToProfile(row: ProfileRow): Profile {
   return {
+    username: row.username ?? "",
     name: row.name,
     prefecture: row.prefecture,
     refereeGrade: row.referee_grade,
     categories: row.categories,
     yearsOfExperience: row.years_of_experience,
+    avatarType: row.avatar_type === "custom" ? "custom" : "default",
+    avatarKey: row.avatar_key || "basketball",
+    avatarUrl: row.avatar_url,
   };
+}
+
+export const EMPTY_PROFILE: Profile = {
+  username: "",
+  name: "",
+  prefecture: "",
+  refereeGrade: "",
+  categories: [],
+  yearsOfExperience: null,
+  avatarType: "default",
+  avatarKey: "basketball",
+  avatarUrl: null,
+};
+
+export function isProfileComplete(profile: Profile | null): boolean {
+  return !!profile && profile.username.trim().length > 0;
+}
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
+
+export function validateUsername(username: string): string | null {
+  if (!username.trim()) return "ユーザー名は必須です";
+  if (!USERNAME_PATTERN.test(username)) {
+    return "ユーザー名は英数字とアンダースコアのみ、3〜20文字で入力してください";
+  }
+  return null;
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -43,6 +84,9 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function updateProfile(input: Profile): Promise<void> {
+  const usernameError = validateUsername(input.username);
+  if (usernameError) throw new Error(usernameError);
+
   const supabase = createClient();
   const {
     data: { user },
@@ -51,14 +95,62 @@ export async function updateProfile(input: Profile): Promise<void> {
 
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
+    username: input.username,
     name: input.name,
     prefecture: input.prefecture,
     referee_grade: input.refereeGrade,
     categories: input.categories,
     years_of_experience: input.yearsOfExperience,
+    avatar_type: input.avatarType,
+    avatar_key: input.avatarKey,
+    avatar_url: input.avatarUrl,
     updated_at: new Date().toISOString(),
   });
-  if (error) throw error;
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("このユーザー名は既に使われています");
+    }
+    throw error;
+  }
+}
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png"];
+
+export function validateAvatarFile(file: File): string | null {
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    return "JPGまたはPNG形式の画像を選択してください";
+  }
+  if (file.size > MAX_AVATAR_SIZE) {
+    return "画像サイズは5MB以内にしてください";
+  }
+  return null;
+}
+
+export async function uploadAvatarImage(file: File): Promise<string> {
+  const validationError = validateAvatarFile(file);
+  if (validationError) throw new Error(validationError);
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("ログインが必要です");
+
+  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${user.id}/${Date.now()}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("profile-icons")
+    .upload(path, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("profile-icons").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export const PREFECTURES = [
@@ -80,3 +172,5 @@ export const ACTIVITY_CATEGORIES = [
   "プロ/Bリーグ",
   "その他",
 ] as const;
+
+export type { DefaultAvatarKey };

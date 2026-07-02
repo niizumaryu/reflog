@@ -4,24 +4,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { ProfileAvatar } from "@/components/AvatarIcons";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { getMatches } from "@/lib/matches";
 import { createClient } from "@/lib/supabase/client";
+
+const BASE_STORE_URL = "https://bskreferee.base.shop/";
 
 function SettingsRow({
   href,
   label,
   description,
+  external,
 }: {
   href: string;
   label: string;
   description?: string;
+  external?: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition active:bg-white/[0.06]"
-    >
+  const content = (
+    <>
       <div>
         <p className="text-sm font-semibold text-white">{label}</p>
         {description && (
@@ -39,18 +41,35 @@ function SettingsRow({
         strokeLinejoin="round"
         className="text-zinc-500"
       >
-        <path d="M9 18l6-6-6-6" />
+        {external ? <path d="M7 17L17 7M7 7h10v10" /> : <path d="M9 18l6-6-6-6" />}
       </svg>
+    </>
+  );
+
+  const className =
+    "flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition active:bg-white/[0.06]";
+
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {content}
     </Link>
   );
 }
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
 
   const handleExportCsv = async () => {
     setError(null);
@@ -80,38 +99,14 @@ export default function SettingsPage() {
     router.refresh();
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmed1 = window.confirm(
-      "アカウントを削除しますか？すべての試合記録とプロフィールが完全に削除され、元に戻せません。",
+  const handleDeleteAccount = () => {
+    const confirmed = window.confirm(
+      "アカウントを削除しますか？この機能は現在準備中です。",
     );
-    if (!confirmed1) return;
-    const confirmed2 = window.confirm(
-      "本当に削除してよろしいですか？この操作は取り消せません。",
+    if (!confirmed) return;
+    setDeleteMessage(
+      "アカウント削除は現在準備中です。今しばらくお待ちください。",
     );
-    if (!confirmed2) return;
-
-    setError(null);
-    setIsDeleting(true);
-    try {
-      const response = await fetch("/api/account/delete", {
-        method: "POST",
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error || "アカウントの削除に失敗しました");
-      }
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.push("/login");
-      router.refresh();
-    } catch (deleteError) {
-      setIsDeleting(false);
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "アカウントの削除に失敗しました",
-      );
-    }
   };
 
   return (
@@ -145,14 +140,45 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <main className="relative flex-1 space-y-8 px-4 py-6">
+      <main className="relative mx-auto w-full max-w-xl flex-1 space-y-8 px-4 py-6">
         {user && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              ログイン中のアカウント
-            </p>
-            <p className="mt-1 truncate text-sm text-white">{user.email}</p>
-          </div>
+          <Link
+            href="/settings/profile"
+            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition active:bg-white/[0.06]"
+          >
+            <ProfileAvatar
+              avatarType={profile?.avatarType ?? "default"}
+              avatarKey={profile?.avatarKey ?? "basketball"}
+              avatarUrl={profile?.avatarUrl ?? null}
+              size={56}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-white">
+                {profile?.name || profile?.username || "プロフィール未設定"}
+              </p>
+              {profile?.username && (
+                <p className="truncate text-xs text-orange-400">
+                  @{profile.username}
+                </p>
+              )}
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                {user.email}
+              </p>
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0 text-zinc-500"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </Link>
         )}
 
         {error && (
@@ -165,7 +191,13 @@ export default function SettingsPage() {
           <SettingsRow
             href="/settings/profile"
             label="プロフィールを編集する"
-            description="名前・都道府県・審判級などを設定"
+            description="ユーザー名・アイコン・都道府県・審判級などを設定"
+          />
+          <SettingsRow
+            href={BASE_STORE_URL}
+            label="REFLOG STORE"
+            description="資料・テンプレートをBASEショップで見る"
+            external
           />
         </div>
 
@@ -217,11 +249,15 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleDeleteAccount}
-            disabled={isDeleting}
-            className="flex w-full items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm font-semibold text-red-400 transition active:bg-red-500/20 disabled:opacity-60"
+            className="flex w-full items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm font-semibold text-red-400 transition active:bg-red-500/20"
           >
-            {isDeleting ? "削除中..." : "アカウントを削除する"}
+            アカウントを削除する
           </button>
+          {deleteMessage && (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400">
+              {deleteMessage}
+            </p>
+          )}
         </div>
       </main>
     </div>

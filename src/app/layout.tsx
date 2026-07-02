@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ProfileGuard } from "@/components/ProfileGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
@@ -51,7 +52,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-black">
         <ServiceWorkerRegister />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ProfileGuard />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
