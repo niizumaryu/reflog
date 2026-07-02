@@ -2,18 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getMatches, type MatchRecord } from "@/lib/matches";
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return "日付未設定";
-  const parsed = new Date(dateStr);
-  if (Number.isNaN(parsed.getTime())) return dateStr;
-  return parsed.toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+import {
+  formatMatchDate as formatDate,
+  getMatches,
+  sortByNewest,
+  type MatchRecord,
+} from "@/lib/matches";
 
 function averageRating(record: MatchRecord) {
   const total =
@@ -21,19 +15,16 @@ function averageRating(record: MatchRecord) {
   return (total / 3).toFixed(1);
 }
 
-function sortByNewest(records: MatchRecord[]) {
-  return [...records].sort((a, b) => {
-    const dateDiff = (b.date || "").localeCompare(a.date || "");
-    if (dateDiff !== 0) return dateDiff;
-    return b.createdAt.localeCompare(a.createdAt);
-  });
-}
-
 export default function MatchesPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
 
   useEffect(() => {
-    setMatches(sortByNewest(getMatches()));
+    getMatches()
+      .then((data) => setMatches(sortByNewest(data)))
+      .catch((error: unknown) => {
+        console.error("Failed to load matches:", error);
+        setMatches([]);
+      });
   }, []);
 
   return (

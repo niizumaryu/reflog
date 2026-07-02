@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { queueToast } from "@/components/Toast";
-import { saveMatch } from "@/lib/matches";
+import { saveMatch, type RefereePosition } from "@/lib/matches";
 
 function RatingSelector({
   value,
@@ -58,27 +58,45 @@ const inputClass =
 
 export default function NewMatchPage() {
   const router = useRouter();
+  const [refereePosition, setRefereePosition] = useState<RefereePosition>("");
   const [judgment, setJudgment] = useState(0);
   const [position, setPosition] = useState(0);
   const [communication, setCommunication] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
+    setIsSaving(true);
     const formData = new FormData(event.currentTarget);
 
-    saveMatch({
-      date: String(formData.get("date") ?? ""),
-      competition: String(formData.get("competition") ?? ""),
-      category: String(formData.get("category") ?? ""),
-      matchCount: Number(formData.get("matchCount") ?? 0),
-      partnerReferee: String(formData.get("partnerReferee") ?? ""),
-      judgmentRating: judgment,
-      positionRating: position,
-      communicationRating: communication,
-      goodPoints: String(formData.get("goodPoints") ?? ""),
-      improvements: String(formData.get("improvements") ?? ""),
-      nextGoal: String(formData.get("nextGoal") ?? ""),
-    });
+    try {
+      await saveMatch({
+        date: String(formData.get("date") ?? ""),
+        competition: String(formData.get("competition") ?? ""),
+        category: String(formData.get("category") ?? ""),
+        matchCount: Number(formData.get("matchCount") ?? 0),
+        partnerReferee: String(formData.get("partnerReferee") ?? ""),
+        refereePosition,
+        judgmentRating: judgment,
+        positionRating: position,
+        communicationRating: communication,
+        goodPoints: String(formData.get("goodPoints") ?? ""),
+        improvements: String(formData.get("improvements") ?? ""),
+        nextGoal: String(formData.get("nextGoal") ?? ""),
+        difficultCalls: String(formData.get("difficultCalls") ?? ""),
+        freeNotes: String(formData.get("freeNotes") ?? ""),
+      });
+    } catch (saveError) {
+      setIsSaving(false);
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "保存に失敗しました。もう一度お試しください。",
+      );
+      return;
+    }
 
     queueToast("保存しました");
     router.push("/");
@@ -162,6 +180,25 @@ export default function NewMatchPage() {
           />
         </Field>
 
+        <Field label="担当ポジション">
+          <div className="flex gap-2">
+            {(["主審", "副審"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setRefereePosition(p)}
+                className={`h-11 flex-1 rounded-xl border text-sm font-bold transition ${
+                  refereePosition === p
+                    ? "border-orange-500 bg-orange-500 text-black"
+                    : "border-white/15 bg-white/5 text-zinc-300 active:bg-white/10"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <div className="space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
             自己評価
@@ -203,15 +240,39 @@ export default function NewMatchPage() {
             className={inputClass}
           />
         </Field>
+
+        <Field label="難しかった判定">
+          <textarea
+            name="difficultCalls"
+            rows={3}
+            placeholder="判断に迷ったプレーや難しかった判定を記録しましょう"
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="自由メモ">
+          <textarea
+            name="freeNotes"
+            rows={3}
+            placeholder="その他、自由に記録しておきたいことがあれば"
+            className={inputClass}
+          />
+        </Field>
       </form>
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-black via-black to-transparent px-4 pb-6 pt-8">
+        {error && (
+          <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           form="new-match-form"
-          className="h-14 w-full rounded-xl bg-orange-500 text-base font-bold tracking-wide text-black shadow-[0_10px_30px_-5px_rgba(249,115,22,0.5)] transition active:scale-[0.98]"
+          disabled={isSaving}
+          className="h-14 w-full rounded-xl bg-orange-500 text-base font-bold tracking-wide text-black shadow-[0_10px_30px_-5px_rgba(249,115,22,0.5)] transition active:scale-[0.98] disabled:opacity-60"
         >
-          記録を保存する
+          {isSaving ? "保存中..." : "記録を保存する"}
         </button>
       </div>
     </div>

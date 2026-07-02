@@ -3,18 +3,13 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { deleteMatch, getMatchById, type MatchRecord } from "@/lib/matches";
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return "日付未設定";
-  const parsed = new Date(dateStr);
-  if (Number.isNaN(parsed.getTime())) return dateStr;
-  return parsed.toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+import { generateAIReflection } from "@/lib/aiReflection";
+import {
+  deleteMatch,
+  formatMatchDate as formatDate,
+  getMatchById,
+  type MatchRecord,
+} from "@/lib/matches";
 
 function Section({
   label,
@@ -62,20 +57,47 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<MatchRecord | null | undefined>(
     undefined,
   );
+  const [reflection, setReflection] = useState<string[] | null>(null);
+  const [isReflecting, setIsReflecting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    setMatch(getMatchById(id) ?? null);
+    getMatchById(id)
+      .then((data) => setMatch(data ?? null))
+      .catch((error: unknown) => {
+        console.error("Failed to load match:", error);
+        setMatch(null);
+      });
   }, [id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!match) return;
     const confirmed = window.confirm(
       "この記録を削除しますか？この操作は取り消せません。",
     );
     if (!confirmed) return;
-    deleteMatch(match.id);
+    try {
+      await deleteMatch(match.id);
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "削除に失敗しました。もう一度お試しください。",
+      );
+      return;
+    }
     router.push("/matches");
+  };
+
+  const handleAIReflection = async () => {
+    if (!match) return;
+    setIsReflecting(true);
+    try {
+      const tips = await generateAIReflection(match);
+      setReflection(tips);
+    } finally {
+      setIsReflecting(false);
+    }
   };
 
   if (match === undefined) {
@@ -126,7 +148,7 @@ export default function MatchDetailPage() {
         </div>
       </header>
 
-      <main className="relative flex-1 space-y-8 px-4 pb-40 pt-6">
+      <main className="relative flex-1 space-y-8 px-4 pb-56 pt-6">
         <div className="grid grid-cols-2 gap-4">
           <Section label="日付">
             <div className={valueBoxClass}>{formatDate(match.date)}</div>
@@ -146,6 +168,10 @@ export default function MatchDetailPage() {
 
         <Section label="パートナー審判">
           <div className={valueBoxClass}>{match.partnerReferee || "-"}</div>
+        </Section>
+
+        <Section label="担当ポジション">
+          <div className={valueBoxClass}>{match.refereePosition || "未設定"}</div>
         </Section>
 
         <div className="space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -180,6 +206,46 @@ export default function MatchDetailPage() {
             {match.nextGoal || "-"}
           </div>
         </Section>
+
+        <Section label="難しかった判定">
+          <div className={`${valueBoxClass} whitespace-pre-wrap`}>
+            {match.difficultCalls || "-"}
+          </div>
+        </Section>
+
+        <Section label="自由メモ">
+          <div className={`${valueBoxClass} whitespace-pre-wrap`}>
+            {match.freeNotes || "-"}
+          </div>
+        </Section>
+
+        <div className="space-y-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+              AI振り返り
+            </p>
+            <button
+              type="button"
+              onClick={handleAIReflection}
+              disabled={isReflecting}
+              className="rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-black transition active:scale-[0.98] disabled:opacity-60"
+            >
+              {isReflecting ? "生成中..." : "AI振り返りを見る"}
+            </button>
+          </div>
+          {reflection && (
+            <ul className="space-y-2">
+              {reflection.map((tip, index) => (
+                <li
+                  key={index}
+                  className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm leading-6 text-white"
+                >
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 flex flex-col gap-3 bg-gradient-to-t from-black via-black to-transparent px-4 pb-6 pt-8">

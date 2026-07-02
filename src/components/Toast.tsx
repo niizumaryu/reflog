@@ -13,9 +13,12 @@ export function useQueuedToast() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // sessionStorage is only available client-side, so this must run in an
+    // effect rather than during render.
     const queued = sessionStorage.getItem(TOAST_SESSION_KEY);
     if (queued) {
       sessionStorage.removeItem(TOAST_SESSION_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessage(queued);
     }
   }, []);
