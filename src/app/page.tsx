@@ -148,7 +148,12 @@ export default function Home() {
           >
             過去の記録を見る
           </Link>
-
+<Link
+  href="/ai-plan"
+  className="flex h-14 w-full items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/20 text-base font-semibold text-blue-300"
+>
+  🏀 AI育成プラン
+</Link>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-1">
             <Link
               href="/dashboard"
