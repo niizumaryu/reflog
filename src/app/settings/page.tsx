@@ -194,6 +194,11 @@ export default function SettingsPage() {
             description="ユーザー名・アイコン・都道府県・審判級などを設定"
           />
           <SettingsRow
+            href="/report"
+            label="年間レポート"
+            description="年間の実績・成長をまとめて確認、PDF出力も可能"
+          />
+          <SettingsRow
             href={BASE_STORE_URL}
             label="REFLOG STORE"
             description="資料・テンプレートをBASEショップで見る"

@@ -25,6 +25,7 @@ Supabase ダッシュボードの **SQL Editor** を開き、[`supabase/schema.s
 - `profiles` テーブル(ユーザー名・表示名・都道府県・審判級・活動カテゴリー・審判歴・アイコン情報)+ RLS ポリシー
   - `username` は一意(未設定の間は `NULL` を許可し、アプリ側の入力必須チェックと組み合わせています)
 - `matches` テーブル(試合記録)+ RLS ポリシー(自分のデータのみ読み書き可能)
+- `annual_goals` テーブル(年別の目標試合数)+ RLS ポリシー(自分のデータのみ読み書き可能)
 - 新規ユーザー登録時に `profiles` 行を自動作成するトリガー
 - **Storage バケット `profile-icons`**(公開読み取り・5MBまで・JPG/PNGのみ)+ 「自分のフォルダ(`{user_id}/...`)にのみアップロード・更新・削除できる」RLS ポリシー
 
@@ -76,6 +77,19 @@ npm run dev
 - **初回ログイン時のプロフィール誘導**: ユーザー名が未設定のアカウントは、どのページにアクセスしてもプロフィール設定画面へ誘導されます — [`src/components/ProfileGuard.tsx`](src/components/ProfileGuard.tsx)
 - **プロフィールアイコン**: バスケットボール関連のデフォルトアイコン10種から選択、または JPG/PNG(5MBまで)を Supabase Storage(`profile-icons` バケット)にアップロードして使用できます — [`src/components/AvatarIcons.tsx`](src/components/AvatarIcons.tsx)
 - **PWA**: ホーム画面に追加してアプリのように起動可能。manifest / service worker / アイコンを実装済み — [`src/app/manifest.ts`](src/app/manifest.ts)、[`public/sw.js`](public/sw.js)
+- **年間レポート**: 年を選んで、年間担当試合数・主審/副審/未設定の内訳・自己評価平均・活動月数・年間目標と達成率・年間目標達成ペース・月別試合数・担当ポジション割合・カテゴリー別集計・自己評価推移(月別数値付き)・前年比較・今年のハイライト(最多カテゴリー/最多課題キーワード/主審割合/活動月数)・よく出る課題キーワード・ルールベースの年間コメント・AI年間分析を表示。トップ画面/ダッシュボード/設定画面から遷移できます — [`src/app/report`](src/app/report)、集計ロジックは [`src/lib/annualReport.ts`](src/lib/annualReport.ts)
+- **審判成長グラフ**: 月別試合数(棒グラフ)・月別自己評価(折れ線グラフ)・担当ポジション割合(円グラフ)・年間目標達成ペース(累計実績 vs 目標ペースの折れ線)・前年比較(棒グラフ)を [Recharts](https://recharts.org/) で描画。すべて黒背景×オレンジ基調、レスポンシブ対応、ホバーでツールチップ表示 — [`src/components/charts`](src/components/charts)
+- **年間目標**: 年間レポート画面で目標試合数を設定できます(初期値100試合)。達成率をプログレスバーで表示し、年ごとに `annual_goals` テーブルに保存されます — [`src/lib/annualGoals.ts`](src/lib/annualGoals.ts)
+
+## 年間レポートのPDF出力
+
+年間レポート画面右上の「PDF出力」ボタンで、表示中のレポートをそのまま PDF としてダウンロードできます。年間目標・達成率・前年比較・今年のハイライトも含め、画面に表示されているセクションはすべて PDF に含まれます(目標変更用の入力欄など、編集専用の操作パーツのみ `pdf-hide` クラスで除外されます)。
+
+- 実装は [`src/lib/pdfExport.ts`](src/lib/pdfExport.ts)。レポート部分の DOM を [`html-to-image`](https://github.com/bubkoo/html-to-image) でキャンバスに描画し、[`jspdf`](https://github.com/parallax/jsPDF) で A4 サイズの PDF に貼り付けます(縦に長い場合は自動で複数ページに分割)。
+- 日本語をブラウザが実際にレンダリングした状態をそのまま画像化するため、PDF用の日本語フォント埋め込みが不要で、文字化けが起きません。
+- どちらのライブラリも PDF 出力ボタンを押したときに動的 import されるため、通常のページ読み込みには影響しません。
+- ダウンロードは `<a download>` によるものなので、スマートフォンのブラウザでも保存できます。
+- ファイル名は `reflog-report-{年}.pdf`(例: `reflog-report-2026.pdf`)。
 
 ## 認証まわりのアーキテクチャ
 

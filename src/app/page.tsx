@@ -149,7 +149,7 @@ export default function Home() {
             過去の記録を見る
           </Link>
 
-          <div className="flex items-center justify-center gap-6 pt-1">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-1">
             <Link
               href="/dashboard"
               className="flex items-center gap-1.5 text-sm font-semibold tracking-wide text-zinc-400 transition active:text-orange-400"
@@ -167,6 +167,25 @@ export default function Home() {
                 <path d="M4 19h16M8 19V9M13 19V5M18 19v-7" />
               </svg>
               ダッシュボード
+            </Link>
+            <Link
+              href="/report"
+              className="flex items-center gap-1.5 text-sm font-semibold tracking-wide text-zinc-400 transition active:text-orange-400"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 17V9M13 17V5M17 17v-4" />
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              年間レポート
             </Link>
             <button
               type="button"

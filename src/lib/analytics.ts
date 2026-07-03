@@ -18,7 +18,7 @@ export function getMonthlyMatchCount(
         d.getMonth() === month
       );
     })
-    .reduce((sum, record) => sum + (record.matchCount || 0), 0);
+    .reduce((sum, record) => sum + (record.matchCount || 1), 0);
 }
 
 export function getYearlyMatchCount(
@@ -31,7 +31,7 @@ export function getYearlyMatchCount(
       const d = new Date(record.date);
       return !Number.isNaN(d.getTime()) && d.getFullYear() === year;
     })
-    .reduce((sum, record) => sum + (record.matchCount || 0), 0);
+    .reduce((sum, record) => sum + (record.matchCount || 1), 0);
 }
 
 export function getPositionCounts(
@@ -68,16 +68,20 @@ export function getAverageRatings(records: MatchRecord[]) {
 export function extractTopKeywords(
   records: MatchRecord[],
   limit = 8,
+  fields: (keyof MatchRecord)[] = ["improvements"],
 ): { word: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const record of records) {
-    if (!record.improvements) continue;
-    const tokens = record.improvements
-      .split(KEYWORD_DELIMITERS)
-      .map((token) => token.trim())
-      .filter((token) => token.length >= 2 && !STOPWORDS.has(token));
-    for (const token of tokens) {
-      counts.set(token, (counts.get(token) ?? 0) + 1);
+    for (const field of fields) {
+      const text = record[field];
+      if (typeof text !== "string" || !text) continue;
+      const tokens = text
+        .split(KEYWORD_DELIMITERS)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 2 && !STOPWORDS.has(token));
+      for (const token of tokens) {
+        counts.set(token, (counts.get(token) ?? 0) + 1);
+      }
     }
   }
   return [...counts.entries()]

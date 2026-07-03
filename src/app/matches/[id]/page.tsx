@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { generateAiCoachComment, type AiCoachComment } from "@/lib/aiCoach";
 import { generateAIReflection } from "@/lib/aiReflection";
 import {
   deleteMatch,
@@ -50,6 +51,31 @@ function RatingDisplay({ value }: { value: number }) {
 const valueBoxClass =
   "rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white";
 
+function CoachSection({
+  label,
+  text,
+  emphasize,
+}: {
+  label: string;
+  text: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 text-sm leading-6 text-white ${
+        emphasize
+          ? "border-orange-500/40 bg-orange-500/10"
+          : "border-white/10 bg-black/40"
+      }`}
+    >
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-orange-400">
+        {label}
+      </p>
+      {text}
+    </div>
+  );
+}
+
 export default function MatchDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -59,6 +85,10 @@ export default function MatchDetailPage() {
   );
   const [reflection, setReflection] = useState<string[] | null>(null);
   const [isReflecting, setIsReflecting] = useState(false);
+  const [coachComment, setCoachComment] = useState<AiCoachComment | null>(
+    null,
+  );
+  const [isCoaching, setIsCoaching] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -97,6 +127,17 @@ export default function MatchDetailPage() {
       setReflection(tips);
     } finally {
       setIsReflecting(false);
+    }
+  };
+
+  const handleAiCoach = async () => {
+    if (!match) return;
+    setIsCoaching(true);
+    try {
+      const comment = await generateAiCoachComment(match);
+      setCoachComment(comment);
+    } finally {
+      setIsCoaching(false);
     }
   };
 
@@ -244,6 +285,42 @@ export default function MatchDetailPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        <div className="space-y-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+                AI審判コーチ
+              </p>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                記録内容をもとにしたコーチからのアドバイス
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAiCoach}
+              disabled={isCoaching}
+              className="shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-black transition active:scale-[0.98] disabled:opacity-60"
+            >
+              {isCoaching ? "生成中..." : "コーチに聞く"}
+            </button>
+          </div>
+          {coachComment && (
+            <div className="space-y-3">
+              <CoachSection label="今日の良かった点" text={coachComment.goodPoint} />
+              <CoachSection
+                label="次への改善ポイント"
+                text={coachComment.improvementPoint}
+              />
+              <CoachSection label="次の試合テーマ" text={coachComment.nextTheme} />
+              <CoachSection
+                label="コーチから一言"
+                text={coachComment.coachMessage}
+                emphasize
+              />
+            </div>
           )}
         </div>
       </main>

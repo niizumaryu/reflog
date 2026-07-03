@@ -170,3 +170,34 @@ create policy "Users can delete their own profile icon"
     bucket_id = 'profile-icons'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
+
+-- ------------------------------------------------------------------
+-- Version 0.5.1: annual_goals (年間目標試合数)
+-- ------------------------------------------------------------------
+create table if not exists public.annual_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  year integer not null,
+  target_match_count integer not null default 100,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, year)
+);
+
+alter table public.annual_goals enable row level security;
+
+drop policy if exists "Users can view their own annual goals" on public.annual_goals;
+create policy "Users can view their own annual goals"
+  on public.annual_goals for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own annual goals" on public.annual_goals;
+create policy "Users can insert their own annual goals"
+  on public.annual_goals for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own annual goals" on public.annual_goals;
+create policy "Users can update their own annual goals"
+  on public.annual_goals for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

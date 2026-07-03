@@ -142,6 +142,31 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
         <StatCard label="今年の試合数" value={yearlyCount} />
       </div>
 
+      <Link
+        href="/report"
+        className="flex items-center justify-between rounded-2xl border border-orange-500/30 bg-orange-500/5 px-4 py-4 transition active:bg-orange-500/10"
+      >
+        <div>
+          <p className="text-sm font-bold text-white">年間レポートを見る</p>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            年間の実績と成長をまとめて確認・PDF出力
+          </p>
+        </div>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0 text-orange-400"
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </Link>
+
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
           担当ポジション別回数
