@@ -74,6 +74,8 @@ npm run dev
 - **AI振り返り(ルールベース)**: 記録内容からキーワードを検出して簡易フィードバックを表示。将来 OpenAI 等の実 API に差し替えやすいよう関数を分離しています — [`src/lib/aiReflection.ts`](src/lib/aiReflection.ts)
 - **CSV出力**: UTF-8 BOM付きでExcelでも文字化けせずに開けます — [`src/lib/csv.ts`](src/lib/csv.ts)
 - **プロフィール/設定**: ユーザー名(必須・一意)・表示名・アイコン(デフォルト10種 or 画像アップロード)・都道府県・審判級・活動カテゴリー・審判歴の編集、データエクスポート — [`src/app/settings`](src/app/settings)
+- **アカウント削除**: 設定画面から確認ダイアログを経てアカウントとすべての紐づくデータを削除し、ログアウトします — [`src/app/api/account/delete/route.ts`](src/app/api/account/delete/route.ts)
+- **利用規約・プライバシーポリシー**: 未ログインでも閲覧できる公開ページ — [`src/app/terms`](src/app/terms)、[`src/app/privacy`](src/app/privacy)
 - **初回ログイン時のプロフィール誘導**: ユーザー名が未設定のアカウントは、どのページにアクセスしてもプロフィール設定画面へ誘導されます — [`src/components/ProfileGuard.tsx`](src/components/ProfileGuard.tsx)
 - **プロフィールアイコン**: バスケットボール関連のデフォルトアイコン10種から選択、または JPG/PNG(5MBまで)を Supabase Storage(`profile-icons` バケット)にアップロードして使用できます — [`src/components/AvatarIcons.tsx`](src/components/AvatarIcons.tsx)
 - **PWA**: ホーム画面に追加してアプリのように起動可能。manifest / service worker / アイコンを実装済み — [`src/app/manifest.ts`](src/app/manifest.ts)、[`public/sw.js`](public/sw.js)
@@ -158,11 +160,20 @@ curl -s "https://<your-project-ref>.supabase.co/rest/v1/video_analyses?select=id
 - `src/lib/supabase/admin.ts` — `service_role` キーを使うサーバー専用クライアント。アカウント削除 API (`src/app/api/account/delete/route.ts`) からのみ使用します。
 - `src/components/AuthProvider.tsx` — セッション状態を保持し、ログイン検知時にローカルデータ移行を1回だけ実行します。
 
+## 利用規約・プライバシーポリシー
+
+- `/terms`(利用規約)、`/privacy`(プライバシーポリシー)は未ログインでも閲覧できる公開ページです — [`src/app/terms`](src/app/terms)、[`src/app/privacy`](src/app/privacy)
+- 設定画面の「規約・ポリシー」セクションからリンクしています。連絡先メールアドレス等、内容に実態と異なる箇所がないか公開前に必ず見直してください。
+
 ## アカウント削除について
 
-設定画面に「アカウントを削除する」ボタンがありますが、**現時点では確認ダイアログ+案内メッセージのみで、実際の削除処理は行いません**(UIのみ)。
+設定画面 → 「アカウントを削除する」から削除できます。「本当に削除しますか？」の確認ダイアログを経て削除を実行し、完了後は自動的にログアウトして `/login` に遷移します — [`src/app/settings/page.tsx`](src/app/settings/page.tsx)。
 
-将来削除処理を有効化する際は、`profiles` と `matches` テーブルが `auth.users` への外部キーに `on delete cascade` を設定済みなので、`supabase.auth.admin.deleteUser()` を呼ぶだけで関連データもまとめて削除できます。この呼び出しには `service_role` キーが必要なため、クライアントから直接実行せず `src/app/api/account/delete/route.ts` (サーバー専用の Route Handler、実装済み・未接続)経由で行う設計です。
+`profiles` をはじめ、ユーザーに紐づく全テーブル(`matches`・`annual_goals`・`schedules`・`push_subscriptions`・`notification_settings`・`notifications`・`video_analyses` とその子テーブル等)が `auth.users` への外部キーに `on delete cascade` を設定済みのため、`supabase.auth.admin.deleteUser()` を呼ぶだけで関連データもまとめて削除されます。この呼び出しには `service_role` キーが必要なため、クライアントから直接実行せず `src/app/api/account/delete/route.ts` (サーバー専用の Route Handler)経由で行っています。
+
+## 公開前チェックリスト
+
+本番公開・ストア申請の前に確認すべき項目は [`docs/release-checklist.md`](docs/release-checklist.md) にまとめています。
 
 ## スクリプト
 
@@ -170,6 +181,7 @@ curl -s "https://<your-project-ref>.supabase.co/rest/v1/video_analyses?select=id
 npm run dev      # 開発サーバー
 npm run build    # 本番ビルド
 npm run lint     # ESLint
+npm test         # Vitest (単体テスト)
 ```
 
 ## Learn More

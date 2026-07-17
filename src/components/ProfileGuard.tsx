@@ -11,6 +11,8 @@ const EXEMPT_PREFIXES = [
   "/update-password",
   "/auth/",
   "/settings/profile",
+  "/terms",
+  "/privacy",
 ];
 
 export function ProfileGuard() {

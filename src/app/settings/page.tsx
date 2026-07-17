@@ -71,6 +71,8 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleExportCsv = async () => {
     setError(null);
@@ -101,13 +103,32 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = () => {
-    const confirmed = window.confirm(
-      "アカウントを削除しますか？この機能は現在準備中です。",
-    );
-    if (!confirmed) return;
-    setDeleteMessage(
-      "アカウント削除は現在準備中です。今しばらくお待ちください。",
-    );
+    setDeleteMessage(null);
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    setDeleteMessage(null);
+    try {
+      const response = await fetch("/api/account/delete", { method: "POST" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || "アカウントの削除に失敗しました");
+      }
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    } catch (deleteError) {
+      setIsDeleting(false);
+      setIsConfirmOpen(false);
+      setDeleteMessage(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "アカウントの削除に失敗しました",
+      );
+    }
   };
 
   return (
@@ -260,6 +281,14 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           <p className="px-1 text-xs font-semibold uppercase tracking-wider text-orange-500">
+            規約・ポリシー
+          </p>
+          <SettingsRow href="/terms" label="利用規約" />
+          <SettingsRow href="/privacy" label="プライバシーポリシー" />
+        </div>
+
+        <div className="space-y-3">
+          <p className="px-1 text-xs font-semibold uppercase tracking-wider text-orange-500">
             アカウント
           </p>
           <button
@@ -272,17 +301,51 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleDeleteAccount}
-            className="flex w-full items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm font-semibold text-red-400 transition active:bg-red-500/20"
+            disabled={isDeleting}
+            className="flex w-full items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-4 text-sm font-semibold text-red-400 transition active:bg-red-500/20 disabled:opacity-60"
           >
-            アカウントを削除する
+            {isDeleting ? "削除中..." : "アカウントを削除する"}
           </button>
           {deleteMessage && (
-            <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400">
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
               {deleteMessage}
             </p>
           )}
         </div>
       </main>
+
+      {isConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm space-y-5 rounded-t-3xl border border-white/10 bg-zinc-950 p-6 sm:rounded-3xl">
+            <div className="space-y-2 text-center">
+              <h2 className="text-base font-bold text-white">
+                本当に削除しますか？
+              </h2>
+              <p className="text-xs leading-relaxed text-zinc-400">
+                アカウントを削除すると、試合記録・年間目標・動画・通知設定など、すべてのデータが完全に削除され、元に戻すことはできません。
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex h-12 w-full items-center justify-center rounded-xl bg-red-500 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+              >
+                {isDeleting ? "削除中..." : "削除する"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsConfirmOpen(false)}
+                disabled={isDeleting}
+                className="flex h-12 w-full items-center justify-center rounded-xl border border-white/15 text-sm font-semibold text-white transition active:bg-white/10 disabled:opacity-60"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
