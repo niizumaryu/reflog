@@ -17,6 +17,9 @@ import {
   validateUsername,
   type Profile,
 } from "@/lib/profile";
+import { SHORT_TEXT_MAX } from "@/lib/inputLimits";
+
+const USERNAME_MAX_LENGTH = 20;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
@@ -253,10 +256,13 @@ function ProfileForm() {
                   username: event.target.value,
                 }))
               }
+              maxLength={USERNAME_MAX_LENGTH}
               className={inputClass}
             />
             {usernameError && (
-              <p className="text-xs text-red-400">{usernameError}</p>
+              <p role="alert" aria-live="assertive" className="text-xs text-red-400">
+                {usernameError}
+              </p>
             )}
             <p className="text-[11px] text-zinc-600">
               英数字とアンダースコアのみ、3〜20文字
@@ -271,6 +277,7 @@ function ProfileForm() {
               onChange={(event) =>
                 setProfile((prev) => ({ ...prev, name: event.target.value }))
               }
+              maxLength={SHORT_TEXT_MAX}
               className={inputClass}
             />
           </Field>
@@ -306,6 +313,7 @@ function ProfileForm() {
                   refereeGrade: event.target.value,
                 }))
               }
+              maxLength={SHORT_TEXT_MAX}
               className={inputClass}
             />
           </Field>
@@ -356,7 +364,11 @@ function ProfileForm() {
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-black via-black to-transparent px-4 pb-6 pt-8">
         <div className="mx-auto w-full max-w-xl">
           {error && (
-            <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+            >
               {error}
             </p>
           )}

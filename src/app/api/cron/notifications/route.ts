@@ -9,6 +9,7 @@ import {
   NO_RECORD_REMINDER_HOURS_AFTER,
   type NotificationType,
 } from "@/lib/notifications/config";
+import { checkRateLimit, clientIdentifier } from "@/lib/rateLimit";
 
 // Triggered hourly (see vercel.json) to send the four schedule/cron-driven
 // reminder types described in NOTIFICATION_CONTENT (ai_advice is triggered
@@ -198,12 +199,30 @@ async function notifyUser(
 }
 
 async function handle(request: NextRequest) {
+  // Fail-closed: an unset CRON_SECRET must reject every call, not skip the
+  // check. This route uses the service-role client (bypasses RLS) to read
+  // every user's schedules/settings and send push notifications, so leaving
+  // it open when the secret is merely unconfigured — as opposed to
+  // deliberately disabled — would let anyone trigger mass notification
+  // sends. Local development must set CRON_SECRET in .env.local like every
+  // other required secret (see .env.local.example); there is no "unset
+  // means local-only" exception anymore.
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const authHeader = request.headers.get("authorization");
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Defense in depth beyond the secret check above: caps how often this
+  // (service-role, mass-notification-sending) route can run even if the
+  // secret leaks. See src/lib/rateLimit.ts for the single-instance caveat.
+  const rateLimit = checkRateLimit(
+    `cron-notifications:${clientIdentifier(request)}`,
+    5,
+    60_000,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   // Push delivery (web-push) is optional. When VAPID keys aren't configured

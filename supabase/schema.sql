@@ -1102,3 +1102,131 @@ create trigger video_analyses_enforce_quota
   before insert on public.video_analyses
   for each row
   execute function public.enforce_video_analysis_quota();
+
+-- ------------------------------------------------------------------
+-- Second audit round: server-side character limits on free-text columns.
+-- This section mirrors
+-- supabase/migrations/20260717_add_text_length_constraints.sql exactly —
+-- see that file for the full rationale. Kept in sync here so schema.sql
+-- remains a complete, idempotent, from-scratch reference; day-to-day
+-- changes should still be applied via the standalone migration file.
+-- ------------------------------------------------------------------
+alter table public.matches
+  drop constraint if exists matches_competition_length_check;
+alter table public.matches
+  add constraint matches_competition_length_check
+  check (char_length(competition) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_category_length_check;
+alter table public.matches
+  add constraint matches_category_length_check
+  check (char_length(category) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_venue_length_check;
+alter table public.matches
+  add constraint matches_venue_length_check
+  check (char_length(venue) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_home_team_length_check;
+alter table public.matches
+  add constraint matches_home_team_length_check
+  check (char_length(home_team) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_away_team_length_check;
+alter table public.matches
+  add constraint matches_away_team_length_check
+  check (char_length(away_team) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_partner_referee_length_check;
+alter table public.matches
+  add constraint matches_partner_referee_length_check
+  check (char_length(partner_referee) <= 200) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_video_url_length_check;
+alter table public.matches
+  add constraint matches_video_url_length_check
+  check (char_length(video_url) <= 2000) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_good_points_length_check;
+alter table public.matches
+  add constraint matches_good_points_length_check
+  check (char_length(good_points) <= 2000) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_improvements_length_check;
+alter table public.matches
+  add constraint matches_improvements_length_check
+  check (char_length(improvements) <= 2000) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_next_goal_length_check;
+alter table public.matches
+  add constraint matches_next_goal_length_check
+  check (char_length(next_goal) <= 2000) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_difficult_calls_length_check;
+alter table public.matches
+  add constraint matches_difficult_calls_length_check
+  check (char_length(difficult_calls) <= 2000) not valid;
+
+alter table public.matches
+  drop constraint if exists matches_free_notes_length_check;
+alter table public.matches
+  add constraint matches_free_notes_length_check
+  check (char_length(free_notes) <= 2000) not valid;
+
+alter table public.schedules
+  drop constraint if exists schedules_title_length_check;
+alter table public.schedules
+  add constraint schedules_title_length_check
+  check (char_length(title) <= 200) not valid;
+
+alter table public.schedules
+  drop constraint if exists schedules_place_length_check;
+alter table public.schedules
+  add constraint schedules_place_length_check
+  check (char_length(place) <= 200) not valid;
+
+alter table public.schedules
+  drop constraint if exists schedules_memo_length_check;
+alter table public.schedules
+  add constraint schedules_memo_length_check
+  check (char_length(memo) <= 2000) not valid;
+
+alter table public.profiles
+  drop constraint if exists profiles_name_length_check;
+alter table public.profiles
+  add constraint profiles_name_length_check
+  check (char_length(name) <= 200) not valid;
+
+alter table public.profiles
+  drop constraint if exists profiles_prefecture_length_check;
+alter table public.profiles
+  add constraint profiles_prefecture_length_check
+  check (char_length(prefecture) <= 200) not valid;
+
+alter table public.profiles
+  drop constraint if exists profiles_referee_grade_length_check;
+alter table public.profiles
+  add constraint profiles_referee_grade_length_check
+  check (char_length(referee_grade) <= 200) not valid;
+
+alter table public.profiles
+  drop constraint if exists profiles_username_length_check;
+alter table public.profiles
+  add constraint profiles_username_length_check
+  check (username is null or char_length(username) <= 20) not valid;
+
+alter table public.video_analyses
+  drop constraint if exists video_analyses_title_length_check;
+alter table public.video_analyses
+  add constraint video_analyses_title_length_check
+  check (char_length(title) <= 200) not valid;

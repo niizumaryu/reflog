@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { STALE_ANALYSIS_TIMEOUT_MS } from "@/lib/video-analysis/constants";
 import { PipelineError, runAnalysisPipeline } from "@/lib/video-analysis/pipeline";
@@ -31,6 +32,18 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
+  }
+
+  // The monthly analysis quota (enforce_video_analysis_quota, DB-side) caps
+  // how many analyses a user can ever start, but says nothing about how
+  // fast they can hit this endpoint in the meantime — this limits repeated
+  // polling/retry bursts against a single account.
+  const rateLimit = checkRateLimit(`video-analyze:${user.id}`, 10, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらく待ってからもう一度お試しください。" },
+      { status: 429 },
+    );
   }
 
   const { data: analysis, error: fetchError } = await supabase

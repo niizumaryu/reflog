@@ -18,6 +18,7 @@ import {
 import { KeywordTagInput } from "@/components/matches/KeywordTagInput";
 import { PopularKeywordTags } from "@/components/matches/PopularKeywordTags";
 import { RatingInput } from "@/components/matches/RatingInput";
+import { LONG_TEXT_MAX, SHORT_TEXT_MAX } from "@/lib/inputLimits";
 
 const REFEREE_POSITIONS: RefereePosition[] = ["主審", "副審"];
 
@@ -122,6 +123,7 @@ export function QuickMatchForm({
               setFieldErrors((prev) => ({ ...prev, competition: undefined }));
             }}
             placeholder="例: 春季リーグ戦"
+            maxLength={SHORT_TEXT_MAX}
             className={fieldErrors.competition ? errorInputClass : inputClass}
           />
         </Field>
@@ -166,6 +168,7 @@ export function QuickMatchForm({
             onChange={(e) => setGoodPoints(e.target.value)}
             rows={2}
             placeholder="今日の試合で上手くいったことを記録しましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -175,6 +178,7 @@ export function QuickMatchForm({
             onChange={(e) => setImprovements(e.target.value)}
             rows={2}
             placeholder="次に活かしたい課題を記録しましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -184,6 +188,7 @@ export function QuickMatchForm({
             onChange={(e) => setNextGoal(e.target.value)}
             rows={2}
             placeholder="次の試合で意識したいことを書きましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -199,7 +204,11 @@ export function QuickMatchForm({
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#07131f] via-[#07131f] to-transparent px-4 pb-6 pt-8">
         {submitError && (
-          <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
             {submitError}
           </p>
         )}

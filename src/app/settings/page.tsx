@@ -204,7 +204,11 @@ export default function SettingsPage() {
         )}
 
         {error && (
-          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
             {error}
           </p>
         )}
@@ -307,7 +311,11 @@ export default function SettingsPage() {
             {isDeleting ? "削除中..." : "アカウントを削除する"}
           </button>
           {deleteMessage && (
-            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+            >
               {deleteMessage}
             </p>
           )}

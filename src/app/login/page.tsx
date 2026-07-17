@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { sanitizeRedirectPath } from "@/lib/safeRedirect";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
@@ -11,7 +12,10 @@ const inputClass =
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  // Same-origin only — see src/lib/safeRedirect.ts. This value is embedded
+  // into the OAuth/email redirectTo URL below and later read back by
+  // /auth/callback, so it must never be allowed to carry an absolute URL.
+  const next = sanitizeRedirectPath(searchParams.get("next"));
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -154,12 +158,20 @@ function LoginForm() {
           )}
 
           {error && (
-            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+            >
               {error}
             </p>
           )}
           {message && (
-            <p className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-xs text-orange-300">
+            <p
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-xs text-orange-300"
+            >
               {message}
             </p>
           )}

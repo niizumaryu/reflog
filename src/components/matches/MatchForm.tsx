@@ -12,6 +12,7 @@ import { KeywordTagInput } from "@/components/matches/KeywordTagInput";
 import { PopularKeywordTags } from "@/components/matches/PopularKeywordTags";
 import { RatingInput } from "@/components/matches/RatingInput";
 import { toggleTag } from "@/lib/keywords";
+import { LONG_TEXT_MAX, SHORT_TEXT_MAX, URL_MAX } from "@/lib/inputLimits";
 
 const REFEREE_POSITIONS: RefereePosition[] = ["主審", "副審"];
 const MATCH_ROLES: MatchRole[] = ["トレイル", "リード", "センター"];
@@ -184,6 +185,7 @@ export function MatchForm({
             value={values.competition}
             onChange={(e) => update("competition", e.target.value)}
             placeholder="例: 春季リーグ戦"
+            maxLength={SHORT_TEXT_MAX}
             className={fieldErrors.competition ? errorInputClass : inputClass}
           />
         </Field>
@@ -210,6 +212,7 @@ export function MatchForm({
             value={values.category}
             onChange={(e) => update("category", e.target.value)}
             placeholder="例: U15男子 / 社会人リーグ"
+            maxLength={SHORT_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -220,6 +223,7 @@ export function MatchForm({
             value={values.venue}
             onChange={(e) => update("venue", e.target.value)}
             placeholder="例: ○○体育館"
+            maxLength={SHORT_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -231,6 +235,7 @@ export function MatchForm({
               value={values.homeTeam}
               onChange={(e) => update("homeTeam", e.target.value)}
               placeholder="例: ○○高校"
+              maxLength={SHORT_TEXT_MAX}
               className={inputClass}
             />
           </Field>
@@ -240,6 +245,7 @@ export function MatchForm({
               value={values.awayTeam}
               onChange={(e) => update("awayTeam", e.target.value)}
               placeholder="例: △△高校"
+              maxLength={SHORT_TEXT_MAX}
               className={inputClass}
             />
           </Field>
@@ -306,6 +312,7 @@ export function MatchForm({
             onChange={(e) => update("goodPoints", e.target.value)}
             rows={3}
             placeholder="今日の試合で上手くいったことを記録しましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -315,6 +322,7 @@ export function MatchForm({
             onChange={(e) => update("improvements", e.target.value)}
             rows={3}
             placeholder="次に活かしたい課題を記録しましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -324,6 +332,7 @@ export function MatchForm({
             onChange={(e) => update("nextGoal", e.target.value)}
             rows={3}
             placeholder="次の試合で意識したいことを書きましょう"
+            maxLength={LONG_TEXT_MAX}
             className={inputClass}
           />
         </Field>
@@ -347,6 +356,7 @@ export function MatchForm({
             value={values.videoUrl}
             onChange={(e) => update("videoUrl", e.target.value)}
             placeholder="https://..."
+            maxLength={URL_MAX}
             className={inputClass}
           />
         </Field>
@@ -357,7 +367,11 @@ export function MatchForm({
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#07131f] via-[#07131f] to-transparent px-4 pb-6 pt-8">
         {submitError && (
-          <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
             {submitError}
           </p>
         )}

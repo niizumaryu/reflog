@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { removeAllUnderPrefix } from "@/lib/supabase/storageCleanup";
@@ -19,6 +20,18 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
+  }
+
+  // Keyed by user id (not IP): this is a destructive, irreversible,
+  // per-account operation, so the thing worth capping is "how many delete
+  // attempts can this one account trigger in a burst" (e.g. a buggy retry
+  // loop on the client), not raw request volume from a shared network.
+  const rateLimit = checkRateLimit(`account-delete:${user.id}`, 3, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらく待ってからもう一度お試しください。" },
+      { status: 429 },
+    );
   }
 
   const admin = createAdminClient();

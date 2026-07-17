@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
 // Sends a one-off push to every device the logged-in user has subscribed,
@@ -23,6 +24,18 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
+  }
+
+  // This route pushes to every device the user has subscribed and calls an
+  // external push service per device — worth capping per-user so a stuck
+  // "send test notification" button (or a script) can't be used to spam a
+  // device or hammer the push provider.
+  const rateLimit = checkRateLimit(`notifications-test:${user.id}`, 5, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらく待ってからもう一度お試しください。" },
+      { status: 429 },
+    );
   }
 
   const { data: subscriptions, error: subError } = await supabase
