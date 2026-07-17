@@ -12,11 +12,14 @@ const PUBLIC_PATHS = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Server-to-server routes (Vercel Cron, etc.) never carry a Supabase
-  // session cookie, so they'd otherwise always get redirected to /login
-  // before reaching their own auth check. These routes authenticate
-  // themselves instead (see CRON_SECRET in src/app/api/cron/notifications).
-  if (pathname.startsWith("/api/cron/")) {
+  // Every API route authenticates itself (supabase.auth.getUser() + a JSON
+  // 401, or CRON_SECRET for the cron route) and must never fall through to
+  // the redirect-to-/login below. A fetch() call follows a 302 redirect
+  // transparently: the caller would see `ok: true` and an HTML login page
+  // body instead of the 401 JSON it expects, so e.g. an expired session
+  // during "delete account" would silently no-op instead of failing
+  // visibly. Page routes still go through the redirect below.
+  if (pathname.startsWith("/api/")) {
     return NextResponse.next({ request });
   }
 
