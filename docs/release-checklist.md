@@ -14,10 +14,12 @@
 
 - [ ] RLS — 全テーブルで行レベルセキュリティが有効になっており、他人のデータを読み書きできないことを確認済み(`supabase/schema.sql` および `supabase/migrations/` の内容を本番プロジェクトに適用済みか。手順は [`docs/supabase-production-verification.md`](./supabase-production-verification.md))
 - [ ] 追加migration — `supabase/migrations/20260717_secure_function_search_path.sql`(トリガー関数のsearch_path明示化)を本番に適用済みか
+- [ ] 追加migration(2巡目監査) — `supabase/migrations/20260717_add_text_length_constraints.sql`(試合記録・プロフィール・スケジュール・動画タイトルへの文字数上限CHECK制約)を本番に適用済みか
 - [ ] Storage — `profile-icons`(公開読み取り)・`match-videos`(非公開)の各バケットが作成され、想定どおりのRLSポリシーが設定されている
 - [ ] Auth — メールログイン・Googleログインが本番のリダイレクトURL/Site URLで動作する(`Authentication > URL Configuration`)。パスワードリセット・確認メールのテンプレートも確認する
-- [ ] Push通知 — VAPIDキー(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`)と `CRON_SECRET` を本番環境に設定し、`/api/cron/notifications` が Vercel Cron から呼ばれることを確認する(`vercel.json`)。**`CRON_SECRET` が未設定の場合、このエンドポイントは誰でも呼び出せる状態になるため、本番では必須。**
+- [ ] Push通知 — VAPIDキー(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`)と `CRON_SECRET` を本番環境に設定し、`/api/cron/notifications` が Vercel Cron から呼ばれることを確認する(`vercel.json`)。**2巡目監査でfail-closedに変更済み: `CRON_SECRET` が未設定の場合、このエンドポイントは常に401を返し、通知が一切送信されなくなります(以前のように「誰でも呼び出せる」ではなく「動かない」側に倒れますが、本番では必須設定である点は変わりません)。**
 - [ ] アカウント削除のStorage削除 — テストアカウントで動画・プロフィール画像をアップロード後にアカウント削除を実行し、`match-videos`・`profile-icons` 両バケットからファイルが実際に消えることを確認済み(手順は [`docs/manual-test-plan.md`](./manual-test-plan.md) のE章)
+- [ ] Rate Limiting — `src/lib/rateLimit.ts` は単一サーバーレスインスタンス内のメモリ限定であることを理解した上で公開している(複数インスタンスでは厳密な合計上限にはならない。詳細は [`docs/known-limitations.md`](./known-limitations.md))
 
 ## 法務
 

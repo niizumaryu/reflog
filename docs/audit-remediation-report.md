@@ -50,3 +50,63 @@
 追加した単体テスト: `src/lib/supabase/storageCleanup.test.ts`(6ケース: 空フォルダ・フラット削除・ネスト削除・複数フォルダ・list失敗・remove失敗)。
 
 既存テスト(60件)と合わせた最終件数は、最終報告(会話内)の検証結果セクションを参照してください。
+
+---
+
+# 2巡目監査(同日実施、2026-07-17〜18)
+
+同一セッション内で、上記の1巡目報告を「最大60点の途中結果」として扱い、コード・テスト・設定・ドキュメントをゼロベースで再監査した記録です。1巡目で見つからなかった問題、および1巡目で「未対応」として残していた項目への対応をまとめます。
+
+## P1(公開を妨げる重大問題)
+
+### オープンリダイレクト(`/login` → `/auth/callback` の `next` パラメータ)
+
+- **問題**: `/login` と `/auth/callback` はログイン後の遷移先を指定する `next` クエリパラメータを検証せずに使用していました。`/auth/callback` はサーバー側で `NextResponse.redirect(new URL(next, request.url))` を実行しますが、`next` が絶対URL(例: `https://evil.example`)だと `new URL()` は `base` を無視するため、外部サイトへの302リダイレクトになります。
+- **影響**: `https://<正規のreflogドメイン>/auth/callback?code=...&next=https://evil.example/phish` のようなリンクは、見た目は信頼できる自社ドメインなのに実際には外部サイトへ転送される「オープンリダイレクト」でした。フィッシングメール等でリンクの信頼性を偽装する目的で悪用され得ます(URLスキャナ・スパムフィルタ・ユーザー自身の目視確認のいずれもホスト名だけを見て信頼してしまう可能性があるため)。
+- **再現方法**: `/auth/callback?code=<有効なcode>&next=https%3A%2F%2Fevil.example` を開くと、修正前は `evil.example` へリダイレクトされていました。
+- **対応状況**: 対応済み。`src/lib/safeRedirect.ts` の `sanitizeRedirectPath()` で、`next` が同一オリジンの相対パス(`/` で始まり、`//` や `/\` で始まらない)であることを検証し、そうでなければ `/` にフォールバックするよう `src/app/auth/callback/route.ts` と `src/app/login/page.tsx` を修正しました。単体テスト `src/lib/safeRedirect.test.ts`(9ケース)、および実際のRoute Handlerを通した回帰テスト `src/app/auth/callback/route.test.ts`(3ケース: 正常な相対パス・絶対URL拒否・プロトコル相対URL拒否)を追加しています。
+
+### CRON_SECRET未設定時に誰でも通知APIを呼び出せる(fail-open)
+
+- **問題**: `/api/cron/notifications` は `CRON_SECRET` が設定されている場合のみ認証チェックを行い、未設定の場合はチェック自体をスキップして誰でも呼び出せる状態になっていました。1巡目監査ではこれを「意図的なローカル開発向けの挙動」として記録し、対応しませんでした。
+- **影響**: このエンドポイントは `service_role` キーでDBに接続し、全ユーザーの `schedules` / `notification_settings` / `push_subscriptions` を読み取ってプッシュ通知を送信します。`CRON_SECRET` の設定を単に忘れたまま本番公開した場合(=「意図的に無効化した」のではなく「設定漏れ」のケース)、外部の誰でもこのエンドポイントを呼び出して全ユーザーへ通知を送信・`notification_log` を汚染できてしまう状態でした。「未設定」と「意図的に無効化」を区別できない設計そのものがリスクでした。
+- **対応状況**: 対応済み。`CRON_SECRET` が未設定、またはヘッダーの値が一致しない場合は常に401を返す **fail-closed** に変更しました(`src/app/api/cron/notifications/route.ts`)。ローカル開発でこのエンドポイントを試す場合も `.env.local` に何らかの値を設定する必要があります(元々の開発環境の `.env.local` には既に値が設定されていたため、この変更によるローカル動作への影響はありませんでした)。単体テスト `src/app/api/cron/notifications/route.test.ts`(4ケース)を追加しています。
+
+## P2(影響範囲が明確な入力検証・UX不具合)
+
+| 問題 | 該当ファイル | 対応 |
+| --- | --- | --- |
+| 試合記録の主要な自由入力欄(競技名・カテゴリー・会場・チーム名・良かったこと・改善点・次回意識すること・動画URL)に文字数上限が全くない(クライアント・サーバーとも) | `src/components/matches/MatchForm.tsx`, `src/components/matches/QuickMatchForm.tsx`, `src/lib/inputLimits.ts`(新規) | クライアント側 `maxLength` を追加。定数を `src/lib/inputLimits.ts` に一元化し、スケジュールフォームの既存のマジックナンバーもここから参照するようリファクタ |
+| 上記と同じ欄に、サーバー側(DB)の検証が一切ない(クライアントを経由しない直接API呼び出しで上限を回避できる) | `supabase/migrations/20260717_add_text_length_constraints.sql`(新規、未適用) | `not valid` CHECK制約を追加(既存データは検証・変更されない安全な変更) |
+| プロフィールの表示名・審判級・ユーザー名にも文字数上限がない | `src/app/settings/profile/page.tsx`, 上記migration | クライアント`maxLength`+DB制約を追加 |
+| リスクの高いAPI(アカウント削除・cron通知・テスト通知・動画解析開始)にレート制限がない | `src/lib/rateLimit.ts`(新規)、該当4ルート | 固定ウィンドウのインメモリRate Limitを追加。単一インスタンス限定である旨をコード内コメントと `docs/known-limitations.md` に明記 |
+| 動画アップロードに進捗表示がなく、キャンセルもできない(大容量ファイルで不安・ブラウザ操作不能感) | `src/lib/video-analysis/upload.ts`, `src/app/video-analysis/new/page.tsx` | Supabase SDKの `upload()` を、同じ認証・同じStorage REST APIエンドポイントへの `XMLHttpRequest` 直叩きに置き換え、`xhr.upload.onprogress` で進捗、`AbortController` でキャンセルを実装。アンマウント時にも自動キャンセルする effect を追加 |
+| 一部のエラー・状態表示に `aria-live` がなく、スクリーンリーダーに非同期の結果(成功/失敗)が伝わらない | ログイン・試合記録フォーム・スケジュールフォーム・設定(アカウント削除・プロフィール)・動画分析アップロード画面など | 該当するエラー/状態表示に `role="alert"`/`role="status"` + `aria-live` を追加 |
+| 動画選択解除ボタン(×)が32px(推奨タップ領域44pxを下回る) | `src/components/video-analysis/VideoUploader.tsx` | `h-8 w-8` → `h-11 w-11` に変更 |
+
+## P3(軽微・今回は見送り)
+
+| 項目 | 理由・推奨時期 |
+| --- | --- |
+| 「戻る」ボタン等、アプリ全体で36px(`h-9 w-9`)のタップ領域を使っている箇所が多数(27ファイル)ある | 全画面にまたがるデザインシステム上の一貫した選択であり、44pxへの一括変更は視覚的な確認なしに行うにはリスクが高い(既存デザインを壊す可能性)。個別の視覚確認を伴う次回の作業として推奨 |
+| Playwright等によるE2Eテスト | ログインを伴うE2Eには実データ用のSupabaseプロジェクトが必要で、本番接続禁止・ローカルSupabaseスタックの起動が環境依存という制約の中では確実に実行できると判断できなかった。次回、テスト専用Supabaseプロジェクトを用意した上での実施を推奨 |
+| 孤立した動画分析レコードの自動cleanupジョブ | 1巡目から継続して未実装。今後の課題 |
+| レート制限の複数インスタンス対応(Redis等の共有ストア) | 外部有料サービスの追加が必要なため、運営者の判断が必要 |
+
+## 監査したが2巡目でも問題が見つからなかった主な領域
+
+- 主要な削除・送信ボタンの二重送信防止: `matches/[id]/edit`・`matches/[id]`・`schedule/[id]/edit`・`video-analysis/[id]`・`settings`(アカウント削除)など、確認した範囲ではすべて `isSubmitting`/`isDeleting` 系のstateで保護済みでした。
+- CSRF: Supabaseの認証はCookie+Bearerトークンのハイブリッドで、状態変更APIは全て `auth.getUser()` によるトークン検証を経ており、素朴なCSRF(Cookieのみを信頼する設計)には該当しません。
+- 動画分析のデモ表示・`is_demo`フラグの一貫性: 1巡目の確認内容から変化なし。
+
+## テスト(2巡目で追加)
+
+- `src/lib/safeRedirect.test.ts`(9ケース)
+- `src/lib/rateLimit.test.ts`(7ケース)
+- `src/app/api/account/delete/route.test.ts`(1ケース: 未認証401)
+- `src/app/api/video-analysis/[id]/analyze/route.test.ts`(4ケース: 不正ID・未認証401・他人データ404・レート制限)
+- `src/app/api/cron/notifications/route.test.ts`(4ケース: fail-closed各パターン)
+- `src/app/api/notifications/test/route.test.ts`(1ケース: 未認証401)
+- `src/app/auth/callback/route.test.ts`(3ケース: 正常系・オープンリダイレクト拒否2パターン)
+
+最終的なテスト総数・実行結果は最終報告(会話内)の検証結果セクションを参照してください。

@@ -9,9 +9,26 @@
 1. `supabase/schema.sql` — 全体スキーマ(冪等・何度実行しても安全)
 2. `supabase/migrations/20260716_add_video_analysis.sql` — 動画分析機能(schema.sqlに統合済みのため、schema.sqlを実行済みなら不要)
 3. `supabase/migrations/20260717_harden_video_analysis.sql` — 動画分析の運用強化(同上)
-4. `supabase/migrations/20260717_secure_function_search_path.sql` — **今回の監査で追加**。トリガー関数に明示的な `search_path` を設定する変更(振る舞いは変わりません)。既存の `schema.sql` / 他migrationを実行済みの環境に対して追加で実行してください。
+4. `supabase/migrations/20260717_secure_function_search_path.sql` — 1巡目監査で追加。トリガー関数に明示的な `search_path` を設定する変更(振る舞いは変わりません)。
+5. `supabase/migrations/20260717_add_text_length_constraints.sql` — **2巡目監査で追加・本セッションでは未適用**。`matches`・`schedules`・`profiles`・`video_analyses` の主要な自由入力欄にサーバー側(DB)の文字数上限CHECK制約を追加します。**破壊的変更ではありません**(`not valid` を使っており、既存データは一切検証・変更されません。新規のinsert/updateのみ対象)。
 
-`schema.sql` は上記すべての内容を含む完全な最新版です。**新規プロジェクトなら `schema.sql` を1回実行するだけで足ります。** 既存プロジェクトに個別のmigrationを追加する場合は、上から順に該当ファイルのみを実行してください。
+`schema.sql` は上記すべての内容を含む完全な最新版です。**新規プロジェクトなら `schema.sql` を1回実行するだけで足ります。** 既存プロジェクトに個別のmigrationを追加する場合は、上から順に該当ファイルのみを実行してください(4→5の順で、両方とも未適用なら先に4、次に5)。
+
+## 適用前確認SQL(migration 5: 文字数制限)
+
+`20260717_add_text_length_constraints.sql` を適用する前に、念のため既存データに極端に長い値がないか確認しておくと安心です(`not valid` を使うため実際には適用がブロックされることはありませんが、状況把握のために推奨します)。
+
+```sql
+select
+  max(char_length(competition)) as max_competition,
+  max(char_length(good_points)) as max_good_points,
+  max(char_length(improvements)) as max_improvements,
+  max(char_length(next_goal)) as max_next_goal,
+  max(char_length(free_notes)) as max_free_notes
+from public.matches;
+```
+
+大きな値(数千文字を超えるなど)が出ても、この migration 自体は失敗しません(`not valid` は既存行を検証しないため)。将来 `validate constraint` で既存データも検証したくなった場合にのみ、該当行の扱いを個別に検討してください。
 
 ## 実行手順
 
@@ -99,12 +116,28 @@ select * from public.plan_limits order by plan_type;
 
 `free` / `pro` / `admin` の3行が存在し、`free` の上限が意図通りか確認してください(将来変更する場合は `update public.plan_limits set monthly_analysis_limit = ... where plan_type = 'free';` で調整できます)。
 
+### 文字数制限CHECK制約が入っているか(migration 5: 2巡目監査で追加)
+
+```sql
+select conrelid::regclass as table_name, conname, pg_get_constraintdef(oid) as definition, convalidated
+from pg_constraint
+where conname like '%_length_check'
+order by conrelid::regclass::text, conname;
+```
+
+`matches`(11列)・`schedules`(3列)・`profiles`(4列)・`video_analyses`(1列)分の行が返り、`convalidated` が `false`(=`not valid` で追加された想定通りの状態)になっていることを確認してください。
+
+## CRON_SECRET が設定されているか(2巡目監査で必須化)
+
+これはSQLではなく **Vercel(またはホスティング先)の環境変数設定** で確認します。`CRON_SECRET` が未設定の場合、`/api/cron/notifications` は2巡目監査以降は常に401を返すようになったため(fail-closed)、**Vercel Cronからの定期実行が全く動かなくなります**(以前のように「誰でも呼べる」状態にはなりませんが、通知そのものが送られません)。本番デプロイ前に、Vercelプロジェクトの Settings > Environment Variables で `CRON_SECRET` が設定されていることを必ず確認してください。
+
 ## ロールバック上の注意
 
 - `supabase/schema.sql` と各migrationは**追加のみ**(`create table if not exists` / `add column if not exists` / `drop policy if exists` → `create policy`)で設計されており、既存データを削除する文はありません。そのため「ロールバック」は基本的に不要ですが、もし戻す必要がある場合は以下を個別に検討してください。
   - 新しいカラム(例: `plan_type`)を削除する場合は `alter table ... drop column ...` を使いますが、**アプリのコードがそのカラムを前提にしているため、コードを先にロールバックしてから行ってください。**
   - トリガー・関数を削除する場合は `drop trigger ... on ...` / `drop function ...` を使いますが、削除するとRLSだけでは防げていた不正操作(状態遷移の逸脱、クォータの直接書き換え等)が可能になる点に注意してください。
 - 本番データに対する `delete` / `truncate` は、このドキュメントのいかなる手順にも含まれていません。もしそのような操作が必要になった場合は、必ず事前にバックアップを取り、影響範囲を明記した上で別途判断してください。
+- migration 5(文字数制限)を戻す場合は、対象の制約だけを個別に削除できます。例: `alter table public.matches drop constraint if exists matches_good_points_length_check;`。既存データは一切変更されないため、削除しても失われるデータはありません。
 
 ## 本番適用状況の記録
 
