@@ -33,6 +33,7 @@ function buildSourceText(record: MatchRecord): string {
     record.nextGoal,
     record.difficultCalls,
     record.freeNotes,
+    record.keywords.join("\n"),
   ]
     .filter(Boolean)
     .join("\n");

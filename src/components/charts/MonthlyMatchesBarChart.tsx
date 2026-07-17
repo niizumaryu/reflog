@@ -29,7 +29,7 @@ export function MonthlyMatchesBarChart({
   }));
 
   return (
-    <div className="h-48 w-full">
+    <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 16, right: 4, bottom: 0, left: 4 }}>
           <XAxis
@@ -45,7 +45,7 @@ export function MonthlyMatchesBarChart({
           />
           <Bar
             dataKey="試合数"
-            fill="#f97316"
+            fill="#22d3ee"
             radius={[4, 4, 0, 0]}
             maxBarSize={22}
           >

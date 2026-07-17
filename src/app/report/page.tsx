@@ -11,11 +11,16 @@ import {
   getAnnualSummary,
   getAvailableYears,
   getCategoryBreakdown,
+  getEntryTypeBreakdown,
+  getHalfSeasonComparison,
+  getHighestRating,
+  getMemorableMatch,
   getMonthlyMatchCounts,
   getMonthlyRatingTrend,
 } from "@/lib/annualReport";
+import { evaluateBadges, getRecentlyEarnedBadges } from "@/lib/coach";
 import { generateGrowthPlan } from "@/lib/growthPlan";
-import { getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
+import { formatMatchDate, getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
 import { exportReportToPdf } from "@/lib/pdfExport";
 import { GoalPaceChart } from "@/components/charts/GoalPaceChart";
 import { MonthlyMatchesBarChart } from "@/components/charts/MonthlyMatchesBarChart";
@@ -39,6 +44,33 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
       {children}
     </p>
+  );
+}
+
+function KeywordRankingList({
+  title,
+  items,
+}: {
+  title: string;
+  items: { word: string; count: number }[];
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] text-zinc-500">{title}</p>
+      {items.length === 0 ? (
+        <p className="text-xs text-zinc-600">記録が増えると表示されます</p>
+      ) : (
+        <ol className="space-y-1 text-sm text-white">
+          {items.map(({ word, count }, index) => (
+            <li key={word} className="flex items-center gap-2">
+              <span className="text-orange-400">{index + 1}.</span>
+              <span className="truncate">{word}</span>
+              <span className="ml-auto shrink-0 text-xs text-zinc-500">×{count}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 
@@ -235,6 +267,7 @@ export default function ReportPage() {
     "improvements",
     "nextGoal",
     "freeNotes",
+    "keywords",
   ]);
   const topCategory = categoryBreakdown.reduce<
     (typeof categoryBreakdown)[number] | null
@@ -259,6 +292,20 @@ export default function ReportPage() {
   const prevYearMatches = matches ? filterMatchesByYear(matches, prevYear) : [];
   const hasPrevData = prevYearMatches.length > 0;
   const prevSummary = getAnnualSummary(prevYearMatches);
+
+  const highestRating = getHighestRating(yearMatches);
+  const entryTypeBreakdown = getEntryTypeBreakdown(yearMatches);
+  const halfSeasonComparison = getHalfSeasonComparison(yearMatches);
+  const memorableMatch = getMemorableMatch(yearMatches);
+  const goodKeywordsTop3 = extractTopKeywords(yearMatches, 3, ["goodPoints"]);
+  const improvementKeywordsTop3 = extractTopKeywords(yearMatches, 3, ["improvements"]);
+  const nextGoalKeywordsTop3 = extractTopKeywords(yearMatches, 3, ["nextGoal"]);
+
+  const allBadges = useMemo(() => evaluateBadges(matches ?? []), [matches]);
+  const seasonBadges = allBadges.filter(
+    (badge) => badge.status === "earned" && badge.earnedAt?.slice(0, 4) === String(selectedYear),
+  );
+  const recentSeasonBadges = getRecentlyEarnedBadges(seasonBadges, 3);
 
   const refereeRatio =
     yearMatches.length > 0
@@ -331,9 +378,9 @@ export default function ReportPage() {
         </Link>
         <div className="flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-orange-500">
-            Annual Report
+            My Season
           </p>
-          <h1 className="text-lg font-bold tracking-tight">年間レポート</h1>
+          <h1 className="text-lg font-bold tracking-tight">年間レポート・マイシーズン</h1>
         </div>
         <button
           type="button"
@@ -416,6 +463,12 @@ export default function ReportPage() {
               value={summary.averageRating.toFixed(1)}
             />
             <StatTile label="活動月数" value={`${summary.activeMonths}ヶ月`} />
+            <StatTile
+              label="最高評価"
+              value={highestRating > 0 ? highestRating.toFixed(1) : "-"}
+            />
+            <StatTile label="Quick Log数" value={entryTypeBreakdown.quickLogCount} />
+            <StatTile label="詳細記録数" value={entryTypeBreakdown.detailedCount} />
           </div>
 
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -490,17 +543,30 @@ export default function ReportPage() {
             </p>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div
+  className="break-inside-avoid page-break-inside-avoid space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-lg shadow-black/20"
+  style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+>
             <SectionTitle>年間目標達成ペース</SectionTitle>
             <GoalPaceChart monthlyCounts={monthlyCounts} goal={goal} />
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div
+  className="break-inside-avoid page-break-inside-avoid space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-lg"
+  style={{
+    pageBreakBefore: "always",
+    breakInside: "avoid",
+    pageBreakInside: "avoid",
+  }}
+>
             <SectionTitle>月別試合数</SectionTitle>
             <MonthlyMatchesBarChart data={monthlyCounts} />
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div
+  className="break-inside-avoid page-break-inside-avoid space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-lg shadow-black/20"
+  style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+>
             <SectionTitle>担当ポジション割合</SectionTitle>
             <PositionPieChart
               referee={summary.refereeCount}
@@ -509,12 +575,22 @@ export default function ReportPage() {
             />
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <SectionTitle>カテゴリー別集計</SectionTitle>
-            <CategoryBars data={categoryBreakdown} />
-          </div>
+          <div
+  className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+  style={{ pageBreakAfter: "always" }}
+>
+  <SectionTitle>カテゴリー別集計</SectionTitle>
+  <CategoryBars data={categoryBreakdown} />
+</div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div
+  className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+  style={{
+    pageBreakBefore: "always",
+    breakInside: "avoid",
+    pageBreakInside: "avoid",
+  }}
+>
             <SectionTitle>自己評価推移</SectionTitle>
             <MonthlyRatingLineChart data={monthlyRatings} />
             <RatingMonthlyGrid data={monthlyRatings} />
@@ -533,7 +609,10 @@ export default function ReportPage() {
             />
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div
+  className="space-y-6 rounded-3xl border border-orange-500/30 bg-orange-950/20 p-6"
+  style={{ pageBreakBefore: "always", breakInside: "avoid", pageBreakInside: "avoid" }}
+>
             <SectionTitle>今年のハイライト</SectionTitle>
             <div className="grid grid-cols-2 gap-3">
               <StatTile
@@ -548,6 +627,100 @@ export default function ReportPage() {
               <StatTile label="活動月数" value={`${summary.activeMonths}ヶ月`} />
             </div>
           </div>
+
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <SectionTitle>カテゴリー別キーワード</SectionTitle>
+            <KeywordRankingList title="良かった点 TOP3" items={goodKeywordsTop3} />
+            <KeywordRankingList title="改善点 TOP3" items={improvementKeywordsTop3} />
+            <KeywordRankingList title="次回意識すること TOP3" items={nextGoalKeywordsTop3} />
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <SectionTitle>前半・後半の評価比較</SectionTitle>
+            {halfSeasonComparison.firstHalfCount === 0 && halfSeasonComparison.secondHalfCount === 0 ? (
+              <p className="text-sm text-zinc-500">評価記録がまだありません</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-white/[0.03] p-3">
+                  <p className="text-[11px] text-zinc-400">前半(1〜6月)</p>
+                  <p className="text-xl font-black text-orange-400">
+                    {halfSeasonComparison.firstHalfAverage > 0
+                      ? halfSeasonComparison.firstHalfAverage.toFixed(1)
+                      : "-"}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {halfSeasonComparison.firstHalfCount}件
+                  </p>
+                </div>
+                <div className="rounded-xl bg-white/[0.03] p-3">
+                  <p className="text-[11px] text-zinc-400">後半(7〜12月)</p>
+                  <p className="text-xl font-black text-orange-400">
+                    {halfSeasonComparison.secondHalfAverage > 0
+                      ? halfSeasonComparison.secondHalfAverage.toFixed(1)
+                      : "-"}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {halfSeasonComparison.secondHalfCount}件
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center justify-between">
+              <SectionTitle>このシーズンで獲得したバッジ</SectionTitle>
+              <Link href="/growth/badges" className="pdf-hide text-xs font-semibold text-orange-400">
+                すべて見る →
+              </Link>
+            </div>
+            {recentSeasonBadges.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                このシーズンではまだバッジを獲得していません
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {recentSeasonBadges.map((badge) => (
+                  <div
+                    key={badge.key}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-center"
+                  >
+                    <span className="text-2xl" aria-hidden>
+                      {badge.icon}
+                    </span>
+                    <span className="text-[11px] font-semibold text-white">{badge.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {memorableMatch && (
+            <Link
+              href={`/matches/${memorableMatch.id}`}
+              className="pdf-hide flex items-center justify-between rounded-2xl border border-orange-400/30 bg-orange-400/5 px-4 py-4 transition active:bg-orange-400/10"
+            >
+              <div className="min-w-0">
+                <p className="text-[11px] text-zinc-400">印象的な記録</p>
+                <p className="truncate text-sm font-bold text-white">
+                  {formatMatchDate(memorableMatch.date)} ・ {memorableMatch.competition || "大会名未設定"}
+                </p>
+              </div>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0 text-orange-400"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          )}
 
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <SectionTitle>よく出る課題キーワード</SectionTitle>
@@ -575,7 +748,10 @@ export default function ReportPage() {
             <p className="text-sm leading-7 text-white">{annualComment}</p>
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+          <div
+  className="space-y-6 rounded-3xl border border-orange-500/30 bg-orange-950/20 p-6"
+  style={{ pageBreakBefore: "always", breakInside: "avoid", pageBreakInside: "avoid" }}
+>
             <div>
               <SectionTitle>AI年間分析</SectionTitle>
               <p className="mt-0.5 text-[11px] text-zinc-500">
@@ -603,7 +779,14 @@ export default function ReportPage() {
             </div>
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+          <div
+  className="space-y-6 rounded-3xl border border-orange-500/30 bg-orange-950/20 p-6"
+  style={{
+    pageBreakBefore: "always",
+    breakInside: "avoid",
+    pageBreakInside: "avoid",
+  }}
+>
             <div>
               <SectionTitle>AI育成プラン</SectionTitle>
               <p className="mt-0.5 text-[11px] text-zinc-500">

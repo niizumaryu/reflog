@@ -4,6 +4,16 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/login", "/reset-password", "/update-password"];
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Server-to-server routes (Vercel Cron, etc.) never carry a Supabase
+  // session cookie, so they'd otherwise always get redirected to /login
+  // before reaching their own auth check. These routes authenticate
+  // themselves instead (see CRON_SECRET in src/app/api/cron/notifications).
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -37,7 +47,6 @@ export async function proxy(request: NextRequest) {
     console.error("Proxy: failed to resolve Supabase session:", error);
   }
 
-  const { pathname } = request.nextUrl;
   const isPublicPath =
     PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/auth/");
 

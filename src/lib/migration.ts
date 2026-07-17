@@ -22,17 +22,29 @@ export async function migrateLocalDataIfNeeded(userId: string): Promise<void> {
     date: match.date,
     competition: match.competition,
     category: match.category,
+    // Pre-Supabase local records predate these fields entirely, so they
+    // fall back to empty/zero defaults rather than undefined.
+    venue: match.venue ?? "",
+    homeTeam: match.homeTeam ?? "",
+    awayTeam: match.awayTeam ?? "",
     matchCount: match.matchCount,
     partnerReferee: match.partnerReferee,
     refereePosition: match.refereePosition,
+    matchRole: match.matchRole ?? "",
+    startTime: match.startTime ?? "",
     judgmentRating: match.judgmentRating,
+    mechanicsRating: match.mechanicsRating ?? 0,
     positionRating: match.positionRating,
+    gameControlRating: match.gameControlRating ?? 0,
     communicationRating: match.communicationRating,
+    staminaRating: match.staminaRating ?? 0,
     goodPoints: match.goodPoints,
     improvements: match.improvements,
     nextGoal: match.nextGoal,
     difficultCalls: match.difficultCalls,
     freeNotes: match.freeNotes,
+    keywords: match.keywords ?? [],
+    videoUrl: match.videoUrl ?? "",
   }));
 
   await saveMatchesBulk(inputs, userId);

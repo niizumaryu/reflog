@@ -20,7 +20,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
         {label}
       </p>
-      <p className="mt-2 text-4xl font-black text-orange-500">{value}</p>
+      <p className="mt-2 text-4xl font-black text-cyan-400">{value}</p>
     </div>
   );
 }
@@ -35,7 +35,7 @@ function RatingBar({ label, value }: { label: string; value: number }) {
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-orange-500"
+          className="h-full rounded-full bg-cyan-400"
           style={{ width: `${percent}%` }}
         />
       </div>
@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   return (
     <div className="relative flex min-h-dvh flex-col bg-black text-white">
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-orange-500/20 blur-[100px]" />
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-400/20 blur-[100px]" />
 
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
@@ -80,7 +80,7 @@ export default function DashboardPage() {
           </svg>
         </Link>
         <div className="flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-orange-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-cyan-400">
             Analytics
           </p>
           <h1 className="text-lg font-bold tracking-tight">ダッシュボード</h1>
@@ -114,7 +114,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/matches/new"
-            className="flex h-12 items-center justify-center rounded-xl bg-orange-500 px-6 text-sm font-bold text-black transition active:scale-[0.98]"
+            className="flex h-12 items-center justify-center rounded-xl bg-cyan-400 px-6 text-sm font-bold text-black transition active:scale-[0.98]"
           >
             新しい試合を記録する
           </Link>
@@ -144,7 +144,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
 
       <Link
         href="/report"
-        className="flex items-center justify-between rounded-2xl border border-orange-500/30 bg-orange-500/5 px-4 py-4 transition active:bg-orange-500/10"
+        className="flex items-center justify-between rounded-2xl border border-cyan-400/30 bg-cyan-400/5 px-4 py-4 transition active:bg-cyan-400/10"
       >
         <div>
           <p className="text-sm font-bold text-white">年間レポートを見る</p>
@@ -161,14 +161,14 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="shrink-0 text-orange-400"
+          className="shrink-0 text-cyan-400"
         >
           <path d="M9 18l6-6-6-6" />
         </svg>
       </Link>
 
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
           担当ポジション別回数
         </p>
         <div className="space-y-2">
@@ -179,7 +179,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
               </span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
                 <div
-                  className="h-full rounded-full bg-orange-500"
+                  className="h-full rounded-full bg-cyan-400"
                   style={{ width: `${(count / maxPositionCount) * 100}%` }}
                 />
               </div>
@@ -193,10 +193,10 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
 
       <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
             自己評価平均
           </p>
-          <p className="text-2xl font-black text-orange-500">
+          <p className="text-2xl font-black text-cyan-400">
             {averages.overall.toFixed(1)}
           </p>
         </div>
@@ -208,7 +208,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
       </div>
 
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
           最近5試合の記録
         </p>
         <ul className="space-y-3">
@@ -219,10 +219,10 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
                 className="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition active:bg-white/[0.06]"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
                     {formatMatchDate(match.date)}
                   </span>
-                  <span className="whitespace-nowrap rounded-full border border-orange-500/40 bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-400">
+                  <span className="whitespace-nowrap rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-400">
                     自己評価{" "}
                     {(
                       (match.judgmentRating +
@@ -242,7 +242,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
       </div>
 
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
           よく入力される課題キーワード
         </p>
         {keywords.length === 0 ? (
@@ -257,7 +257,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
                 className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white"
               >
                 {word}
-                <span className="text-orange-500">×{count}</span>
+                <span className="text-cyan-400">×{count}</span>
               </span>
             ))}
           </div>
@@ -268,7 +268,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
         href={BASE_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 transition active:text-orange-400"
+        className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 transition active:text-cyan-400"
       >
         資料・テンプレートを見る
         <svg

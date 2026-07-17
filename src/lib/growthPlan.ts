@@ -44,7 +44,13 @@ function pick<T>(items: T[]): T {
 
 function buildRecentSourceText(recentMatches: MatchRecord[]): string {
   return recentMatches
-    .flatMap((m) => [m.improvements, m.nextGoal, m.difficultCalls, m.freeNotes])
+    .flatMap((m) => [
+      m.improvements,
+      m.nextGoal,
+      m.difficultCalls,
+      m.freeNotes,
+      m.keywords.join("\n"),
+    ])
     .filter(Boolean)
     .join("\n");
 }

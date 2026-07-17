@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { ProfileAvatar } from "@/components/AvatarIcons";
+import { NotificationToggle } from "@/components/notifications/NotificationToggle";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { getMatches } from "@/lib/matches";
 import { createClient } from "@/lib/supabase/client";
@@ -203,6 +204,23 @@ export default function SettingsPage() {
             label="REFLOG STORE"
             description="資料・テンプレートをBASEショップで見る"
             external
+          />
+        </div>
+
+        <div className="space-y-3">
+          <p className="px-1 text-xs font-semibold uppercase tracking-wider text-cyan-400">
+            通知
+          </p>
+          <NotificationToggle />
+          <SettingsRow
+            href="/settings/notifications"
+            label="通知設定を詳しく見る"
+            description="通知の種類・時刻を個別に設定"
+          />
+          <SettingsRow
+            href="/notifications"
+            label="通知一覧"
+            description="届いた通知の確認・既読管理"
           />
         </div>
 

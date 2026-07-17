@@ -91,6 +91,65 @@ npm run dev
 - ダウンロードは `<a download>` によるものなので、スマートフォンのブラウザでも保存できます。
 - ファイル名は `reflog-report-{年}.pdf`(例: `reflog-report-2026.pdf`)。
 
+## AI動画分析(デモ基盤)
+
+`/video-analysis` から、試合動画をアップロードして解析する機能の**基盤**を追加しました。**重要: これは完成した商用AI機能ではなく、将来の実解析に向けた土台です。**
+
+### 実際に動いている部分(本物)
+
+- 動画アップロード: ブラウザから Supabase Storage の非公開バケット `match-videos` へ直接アップロードし、RLSでアップロード者本人のみアクセスできます — [`src/lib/video-analysis/upload.ts`](src/lib/video-analysis/upload.ts)
+- 動画メタデータ抽出: 動画の長さ・解像度を実際に読み取ります — [`src/lib/video-analysis/qualityMetrics.ts`](src/lib/video-analysis/qualityMetrics.ts)
+- 映像品質チェック: ブラウザの Canvas で実際に複数フレームをサンプリングし、明るさ・暗いフレームの割合・シャープさの参考値などを計算した上で、品質が著しく低い場合は「判定不能」として以降の解析を行いません(`quality_tier = insufficient`)
+- 解析ステータスの管理: `video_analyses.status`(uploaded → analyzing → completed / completed_insufficient_quality / failed)と `progress` は実際のパイプライン処理の進行に合わせて更新されます — [`src/lib/video-analysis/pipeline.ts`](src/lib/video-analysis/pipeline.ts)、[`src/app/api/video-analysis/[id]/analyze/route.ts`](src/app/api/video-analysis/%5Bid%5D/analyze/route.ts)
+  - 許可された状態遷移は [`src/lib/video-analysis/statusMachine.ts`](src/lib/video-analysis/statusMachine.ts) に一箇所にまとめてあり、さらに **DBトリガー** (`enforce_video_analysis_status_transition`) が同じ遷移ルールを強制します。ログイン中の本人がブラウザから直接 `status` を `completed` 等へ書き換えようとしても、正規の遷移(`uploaded/failed → analyzing → completed` 等)以外は拒否されます。
+- 所有権保護: 新規テーブル(`video_analyses`・`analysis_quality_metrics`・`analysis_events`・`coaching_results`・`analysis_feedback`)はすべて RLS で本人のみ閲覧・編集・削除可能です
+  - 加えて **DBトリガー** (`enforce_video_analysis_ownership`)が、子テーブル(`analysis_quality_metrics`・`analysis_events`・`coaching_results`・`analysis_feedback`)へ挿入する行の `video_analysis_id` が実際に自分の `video_analyses` 行を指しているかを検証します。RLSは行自体の所有者しかチェックしないため、これがないと理論上「自分の行として、他人の解析IDを参照する子データ」を挿入できてしまう隙があり、それを塞いでいます。
+- 削除: 動画削除は Storage → DB の順で削除し、Storageの削除に失敗した場合は何も削除されず安全に再試行できます。Storage削除後にDB削除だけ失敗した場合は、その旨を明示したエラーメッセージを表示します(不整合を隠しません)。
+
+### まだ実装していない部分(デモ表示)
+
+- コート検出・選手/審判検出・ボール検出・プレー場面検出・審判へのコーチング内容は、**実際のコンピュータービジョンAIモデルによる解析ではありません**。すべて `is_demo = true` が付き、UI上にも「デモ解析パイプライン」の注意書きが常時表示されます — [`src/lib/video-analysis/mockAdapters.ts`](src/lib/video-analysis/mockAdapters.ts)
+- どの結果も「確定した判定」ではなく、根拠・信頼度・不確実な理由・別の解釈の可能性・不足しているデータ・人間による確認推奨を必ず添えて表示します(`EvidentiaryFields`) — [`src/lib/video-analysis/types.ts`](src/lib/video-analysis/types.ts)
+- 将来、実際の検出モデルを統合する際は `CourtDetector` / `PersonDetector` / `BallDetector` / `EventDetector` / `RefereeCoachEngine` インターフェースを実装したクラスを作成し、`src/lib/video-analysis/pipeline.ts` の呼び出し先を差し替えるだけで済むように設計しています(呼び出し側のコード変更は不要)
+
+### 制限・今後の課題
+
+- アップロードは 300MB / 15分までです(`src/lib/video-analysis/constants.ts`)。Supabase プロジェクト側のアップロードサイズ上限設定によっては、これより厳しい制限がかかる場合があります。
+- 非同期ジョブキュー(`analysis_jobs`)やフレーム単位の追跡データ保存(`analysis_tracks`)はまだ実装していません。今回はモック解析が同期的に完結するため、ステータス/進捗は `video_analyses` テーブルに直接持たせています。将来リアルタイムの重い解析を非同期ワーカーで実行する際に、あらためて設計・追加してください。
+- 複数カメラの同期、姿勢推定、ボール軌道追跡、コート座標変換などは未実装です。
+- アップロード完了前にブラウザを閉じた場合など、動画ファイルが存在しないまま `uploaded`/`analyzing` の記録だけが残る「孤立レコード」を自動的に片付ける仕組み(定期cleanupジョブ等)はまだありません。将来 `src/app/api/cron` と同様の仕組みで、一定時間以上進行のない記録を `failed` にする、または削除するバッチを追加することを推奨します。
+- 単体テスト(Vitest)は、DOM/ネットワークに依存しない純粋なロジック(バリデーション・品質判定・状態遷移ルール)のみを対象にしています。RLSやトリガーを含む結合テストは、ローカルSupabaseスタック(`supabase start`)が必要なため今回は実行していません。UIコンポーネントの自動テストも未整備です。
+
+### セットアップに必要な作業
+
+新しいテーブルと Storage バケットは、**独立したマイグレーションファイル** [`supabase/migrations/20260716_add_video_analysis.sql`](supabase/migrations/20260716_add_video_analysis.sql) にまとまっています。`supabase/schema.sql` の全文を再実行する必要はありません。
+
+1. Supabase ダッシュボードを開く
+2. 左メニューの **SQL Editor** を開く
+3. **New query** を押す
+4. [`supabase/migrations/20260716_add_video_analysis.sql`](supabase/migrations/20260716_add_video_analysis.sql) の内容を全文コピーする
+5. SQL Editor に貼り付ける
+6. **Run** を押す
+7. 「Success. No rows returned」等の成功表示を確認する
+8. REFLOGにログインし、`/video-analysis` から動作確認する
+
+冪等なマイグレーションなので、何度実行しても安全です。既存のテーブル・データ・RLSポリシーへの影響はありません。新しい環境変数は不要です(外部AI APIを一切呼び出していないため)。
+
+#### 開発環境での確認方法
+
+マイグレーションが適用されたかどうかは、ブラウザや `curl` から匿名キーで REST エンドポイントを直接叩くと確認できます(自分のデータは返りませんが、テーブルの有無だけ分かります)。
+
+```bash
+curl -s "https://<your-project-ref>.supabase.co/rest/v1/video_analyses?select=id&limit=1" \
+  -H "apikey: <NEXT_PUBLIC_SUPABASE_ANON_KEY>" \
+  -H "Authorization: Bearer <NEXT_PUBLIC_SUPABASE_ANON_KEY>"
+```
+
+- マイグレーション未適用: `{"code":"PGRST205", ... "Could not find the table 'public.video_analyses'" ...}` が返ります。
+- マイグレーション適用済み: `[]`(未ログイン扱いのためRLSで空配列)が返ります。
+
+同様に `.../storage/v1/bucket/match-videos` へのリクエストが `Bucket not found` から通常のバケット情報に変われば、Storage側の設定も反映されています。
+
 ## 認証まわりのアーキテクチャ
 
 - `src/proxy.ts` — Next.js 16 の Proxy(旧 Middleware)。未ログインで保護ページにアクセスすると `/login` にリダイレクトします。

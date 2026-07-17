@@ -6,10 +6,17 @@ const LEGACY_STORAGE_KEY = "reflog_matches";
 
 export function getLegacyLocalMatches(): MatchRecord[] {
   if (typeof window === "undefined") return [];
+
+  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+
+  if (!raw || raw.trim() === "") {
+    return [];
+  }
+
   try {
-    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as MatchRecord[]) : [];
+    return JSON.parse(raw) as MatchRecord[];
   } catch {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     return [];
   }
 }

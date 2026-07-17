@@ -1,5 +1,5 @@
 import { getAverageRatings, getPositionCounts } from "@/lib/analytics";
-import type { MatchRecord } from "@/lib/matches";
+import { getOverallAverage, sortByNewest, type MatchRecord } from "@/lib/matches";
 
 export const CATEGORY_BUCKETS = [
   "U12",
@@ -154,4 +154,51 @@ export function getCategoryBreakdown(
     category,
     count: counts.get(category) ?? 0,
   }));
+}
+
+export function getHighestRating(yearMatches: MatchRecord[]): number {
+  return yearMatches.reduce((max, record) => Math.max(max, getOverallAverage(record)), 0);
+}
+
+export type EntryTypeBreakdown = { quickLogCount: number; detailedCount: number };
+
+export function getEntryTypeBreakdown(yearMatches: MatchRecord[]): EntryTypeBreakdown {
+  const quickLogCount = yearMatches.filter((m) => m.entryType === "quick").length;
+  return { quickLogCount, detailedCount: yearMatches.length - quickLogCount };
+}
+
+export type HalfSeasonComparison = {
+  firstHalfAverage: number;
+  secondHalfAverage: number;
+  firstHalfCount: number;
+  secondHalfCount: number;
+};
+
+// Splits the year at the July boundary (months 0-5 vs 6-11) so "前半/後半"
+// always means the same six-month windows regardless of when records land.
+export function getHalfSeasonComparison(yearMatches: MatchRecord[]): HalfSeasonComparison {
+  const firstHalf: MatchRecord[] = [];
+  const secondHalf: MatchRecord[] = [];
+  for (const record of yearMatches) {
+    if (!record.date) continue;
+    const parsed = new Date(record.date);
+    if (Number.isNaN(parsed.getTime())) continue;
+    (parsed.getMonth() < 6 ? firstHalf : secondHalf).push(record);
+  }
+  return {
+    firstHalfAverage: getAverageRatings(firstHalf).overall,
+    secondHalfAverage: getAverageRatings(secondHalf).overall,
+    firstHalfCount: firstHalf.length,
+    secondHalfCount: secondHalf.length,
+  };
+}
+
+// The most recent 5-star (or, failing that, highest-rated) record for the
+// year — used as the "印象的な記録" entry point on the season page.
+export function getMemorableMatch(yearMatches: MatchRecord[]): MatchRecord | null {
+  if (yearMatches.length === 0) return null;
+  const newest = sortByNewest(yearMatches);
+  const topRating = getHighestRating(yearMatches);
+  if (topRating === 0) return null;
+  return newest.find((record) => getOverallAverage(record) === topRating) ?? null;
 }

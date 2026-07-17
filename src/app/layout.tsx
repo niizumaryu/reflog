@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { NotificationPermissionPrompt } from "@/components/notifications/NotificationPermissionPrompt";
 import { ProfileGuard } from "@/components/ProfileGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
@@ -54,6 +55,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <AuthProvider>
           <ProfileGuard />
+          <NotificationPermissionPrompt />
           {children}
         </AuthProvider>
       </body>

@@ -28,7 +28,7 @@ export function MonthlyRatingLineChart({
   }));
 
   return (
-    <div className="h-48 w-full">
+    <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 16, right: 8, bottom: 0, left: -20 }}>
           <CartesianGrid
@@ -58,11 +58,11 @@ export function MonthlyRatingLineChart({
           <Line
             type="monotone"
             dataKey="自己評価"
-            stroke="#f97316"
+            stroke="#22d3ee"
             strokeWidth={2}
             connectNulls={false}
-            dot={{ r: 4, fill: "#f97316", stroke: "#000000", strokeWidth: 2 }}
-            activeDot={{ r: 5, fill: "#f97316", stroke: "#000000", strokeWidth: 2 }}
+            dot={{ r: 4, fill: "#22d3ee", stroke: "#000000", strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: "#22d3ee", stroke: "#000000", strokeWidth: 2 }}
           />
         </LineChart>
       </ResponsiveContainer>

@@ -1,5 +1,7 @@
-import { getMatches } from "@/lib/matches";
+"use client";
 
+import { useEffect, useState } from "react";
+import { getMatches, type MatchRecord } from "@/lib/matches";
 
 
 function getTheme(score: number) {
@@ -30,8 +32,17 @@ function getMessage(score: number, count: number) {
   return "高いレベルで安定しています。次は周囲を導く審判を目指しましょう。";
 }
 
-export default async function AIPlanPage() {
-  const matches = await getMatches();
+export default function AIPlanPage() {
+  const [matches, setMatches] = useState<MatchRecord[]>([]);
+
+  useEffect(() => {
+    async function loadMatches() {
+      const data = await getMatches();
+      setMatches(data);
+    }
+
+    loadMatches();
+  }, []);
   const matchCount = matches.length;
   const averageScore =
   matchCount === 0

@@ -1,4 +1,4 @@
-import type { MatchRecord } from "@/lib/matches";
+import { getOverallAverage, type MatchRecord } from "@/lib/matches";
 
 export type AiCoachComment = {
   goodPoint: string;
@@ -141,13 +141,6 @@ function pick<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function getOverallRating(match: MatchRecord): number {
-  return (
-    (match.judgmentRating + match.positionRating + match.communicationRating) /
-    3
-  );
-}
-
 function buildSourceText(match: MatchRecord): string {
   return [
     match.goodPoints,
@@ -155,6 +148,7 @@ function buildSourceText(match: MatchRecord): string {
     match.nextGoal,
     match.difficultCalls,
     match.freeNotes,
+    match.keywords.join("\n"),
   ]
     .filter(Boolean)
     .join("\n");
@@ -325,7 +319,7 @@ function buildCoachMessage(match: MatchRecord, overall: number): string {
 export async function generateAiCoachComment(
   match: MatchRecord,
 ): Promise<AiCoachComment> {
-  const overall = getOverallRating(match);
+  const overall = getOverallAverage(match);
   const sourceText = buildSourceText(match);
 
   return {
