@@ -171,9 +171,18 @@ curl -s "https://<your-project-ref>.supabase.co/rest/v1/video_analyses?select=id
 
 `profiles` をはじめ、ユーザーに紐づく全テーブル(`matches`・`annual_goals`・`schedules`・`push_subscriptions`・`notification_settings`・`notifications`・`video_analyses` とその子テーブル等)が `auth.users` への外部キーに `on delete cascade` を設定済みのため、`supabase.auth.admin.deleteUser()` を呼ぶだけで関連データもまとめて削除されます。この呼び出しには `service_role` キーが必要なため、クライアントから直接実行せず `src/app/api/account/delete/route.ts` (サーバー専用の Route Handler)経由で行っています。
 
+Supabase StorageのオブジェクトはこのFK cascadeの対象外のため、`auth.users` を削除する**前に** `match-videos`・`profile-icons` 両バケットの `${user_id}/` 配下を再帰的に削除しています([`src/lib/supabase/storageCleanup.ts`](src/lib/supabase/storageCleanup.ts))。Storage削除が失敗した場合はアカウント削除自体を中止し、データを失わず再試行できるようにしています。詳細は [`docs/data-deletion.md`](docs/data-deletion.md) を参照してください。
+
 ## 公開前チェックリスト
 
-本番公開・ストア申請の前に確認すべき項目は [`docs/release-checklist.md`](docs/release-checklist.md) にまとめています。
+本番公開・ストア申請の前に確認すべき項目は [`docs/release-checklist.md`](docs/release-checklist.md) にまとめています。その他の運用ドキュメントは以下を参照してください。
+
+- [`docs/known-limitations.md`](docs/known-limitations.md) — 動画分析がデモ実装であること、課金・ストア配信が未対応であること等、公開前に必ず把握すべき制限事項
+- [`docs/security.md`](docs/security.md) — 認証・RLS・Storage・鍵管理などのセキュリティ設計と監査結果
+- [`docs/data-deletion.md`](docs/data-deletion.md) — アカウント削除の詳細な処理順序
+- [`docs/supabase-production-verification.md`](docs/supabase-production-verification.md) — 本番Supabaseへのmigration適用・確認手順
+- [`docs/manual-test-plan.md`](docs/manual-test-plan.md) — 開発経験がなくても実行できる手動テスト手順
+- [`docs/audit-remediation-report.md`](docs/audit-remediation-report.md) — 直近の監査で発見・修正した内容の記録
 
 ## スクリプト
 

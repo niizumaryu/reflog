@@ -2,6 +2,8 @@
 
 本番公開・ストア申請の前に、上から順に確認してください。チェックが付けられない項目がある場合は、公開を見送るか、リスクを承知の上で理由を記録してください。
 
+公開前に必ず [`docs/known-limitations.md`](./known-limitations.md)(動画分析がデモ実装であること、課金・ストア配信未対応など)にも目を通してください。
+
 ## 品質
 
 - [ ] Build — `npm run build` がエラーなく完了する
@@ -10,10 +12,12 @@
 
 ## データベース・インフラ(Supabase)
 
-- [ ] RLS — 全テーブルで行レベルセキュリティが有効になっており、他人のデータを読み書きできないことを確認済み(`supabase/schema.sql` および `supabase/migrations/` の内容を本番プロジェクトに適用済みか)
+- [ ] RLS — 全テーブルで行レベルセキュリティが有効になっており、他人のデータを読み書きできないことを確認済み(`supabase/schema.sql` および `supabase/migrations/` の内容を本番プロジェクトに適用済みか。手順は [`docs/supabase-production-verification.md`](./supabase-production-verification.md))
+- [ ] 追加migration — `supabase/migrations/20260717_secure_function_search_path.sql`(トリガー関数のsearch_path明示化)を本番に適用済みか
 - [ ] Storage — `profile-icons`(公開読み取り)・`match-videos`(非公開)の各バケットが作成され、想定どおりのRLSポリシーが設定されている
 - [ ] Auth — メールログイン・Googleログインが本番のリダイレクトURL/Site URLで動作する(`Authentication > URL Configuration`)。パスワードリセット・確認メールのテンプレートも確認する
-- [ ] Push通知 — VAPIDキー(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`)と `CRON_SECRET` を本番環境に設定し、`/api/cron/notifications` が Vercel Cron から呼ばれることを確認する(`vercel.json`)
+- [ ] Push通知 — VAPIDキー(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`)と `CRON_SECRET` を本番環境に設定し、`/api/cron/notifications` が Vercel Cron から呼ばれることを確認する(`vercel.json`)。**`CRON_SECRET` が未設定の場合、このエンドポイントは誰でも呼び出せる状態になるため、本番では必須。**
+- [ ] アカウント削除のStorage削除 — テストアカウントで動画・プロフィール画像をアップロード後にアカウント削除を実行し、`match-videos`・`profile-icons` 両バケットからファイルが実際に消えることを確認済み(手順は [`docs/manual-test-plan.md`](./manual-test-plan.md) のE章)
 
 ## 法務
 
