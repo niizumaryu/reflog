@@ -50,6 +50,16 @@ export default function NewVideoAnalysisPage() {
       });
   }, []);
 
+  // previewUrl is a blob: Object URL (URL.createObjectURL) — the browser
+  // keeps its backing memory alive until explicitly revoked. Selecting a
+  // video, clearing it, and selecting another (repeatedly, in the same
+  // session) would otherwise leak one blob per selection.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const resetSelection = () => {
     setSelectedFile(null);
     setPreviewUrl(null);

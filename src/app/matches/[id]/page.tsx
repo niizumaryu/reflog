@@ -73,6 +73,7 @@ export default function MatchDetailPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [reflection, setReflection] = useState<string[] | null>(null);
   const [isReflecting, setIsReflecting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [coachComment, setCoachComment] = useState<AiCoachComment | null>(
     null,
   );
@@ -110,11 +111,12 @@ export default function MatchDetailPage() {
   );
 
   const handleDelete = async () => {
-    if (!match) return;
+    if (!match || isDeleting) return;
     const confirmed = window.confirm(
       "この記録を削除しますか？この操作は取り消せません。",
     );
     if (!confirmed) return;
+    setIsDeleting(true);
     try {
       await deleteMatch(match.id);
     } catch (error) {
@@ -123,6 +125,7 @@ export default function MatchDetailPage() {
           ? error.message
           : "削除に失敗しました。もう一度お試しください。",
       );
+      setIsDeleting(false);
       return;
     }
     router.push("/matches");
@@ -470,9 +473,10 @@ export default function MatchDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="h-12 w-full rounded-xl border border-red-500/40 bg-red-500/10 text-sm font-semibold tracking-wide text-red-400 transition active:scale-[0.98] active:bg-red-500/20"
+          disabled={isDeleting}
+          className="h-12 w-full rounded-xl border border-red-500/40 bg-red-500/10 text-sm font-semibold tracking-wide text-red-400 transition active:scale-[0.98] active:bg-red-500/20 disabled:opacity-60"
         >
-          削除する
+          {isDeleting ? "削除中..." : "削除する"}
         </button>
         <Link
           href="/matches"

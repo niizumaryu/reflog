@@ -58,6 +58,7 @@ export default function NewSchedulePage() {
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
               className={`w-full rounded-xl border bg-white/5 p-3 ${
                 fieldErrors.title ? "border-red-500/60" : "border-white/10"
               }`}
@@ -98,6 +99,7 @@ export default function NewSchedulePage() {
             <input
               value={place}
               onChange={(e) => setPlace(e.target.value)}
+              maxLength={200}
               className="w-full rounded-xl border border-white/10 bg-white/5 p-3"
               placeholder="例：○○体育館"
             />
@@ -108,6 +110,7 @@ export default function NewSchedulePage() {
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
+              maxLength={2000}
               className="h-32 w-full rounded-xl border border-white/10 bg-white/5 p-3"
               placeholder="自由にメモを書いてください"
             />

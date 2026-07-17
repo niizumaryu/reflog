@@ -18,6 +18,10 @@ export function PositionPieChart({
     { name: "副審", value: assistant, fill: "#f59e0b", fillOpacity: 1 },
   ].filter((item) => item.value > 0);
 
+  if (data.length === 0) {
+    return <p className="py-8 text-center text-sm text-zinc-500">記録がまだありません</p>;
+  }
+
   return (
     <div className="space-y-3">
       <div className="h-64 w-full">
