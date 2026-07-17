@@ -52,7 +52,7 @@ export function VideoUploader({
             onClick={onClear}
             disabled={disabled}
             aria-label="選択を解除"
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20 disabled:opacity-50"
+            className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20 disabled:opacity-50"
           >
             ×
           </button>

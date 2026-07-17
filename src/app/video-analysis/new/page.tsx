@@ -40,7 +40,9 @@ export default function NewVideoAnalysisPage() {
   const [classification, setClassification] = useState<QualityClassification | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const submitGuardRef = useRef(new SingleFlightGuard());
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getUsageSummary()
@@ -105,6 +107,20 @@ export default function NewVideoAnalysisPage() {
     }
   };
 
+  // Aborts any in-flight upload if the user navigates away mid-upload —
+  // otherwise the browser keeps sending a multi-hundred-MB request nobody
+  // is waiting on anymore, and (rarely) a state update could fire after
+  // unmount if the XHR settles just after navigation.
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const handleCancelUpload = () => {
+    abortControllerRef.current?.abort();
+  };
+
   const handleSubmit = async () => {
     if (!selectedFile || !metadata || !rawMetrics || !classification) return;
     // A plain mutable guard, not React state: prevents a second click
@@ -114,13 +130,20 @@ export default function NewVideoAnalysisPage() {
     setIsSubmitting(true);
 
     setPhase("uploading");
+    setUploadProgress(0);
     setErrorMessage(null);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     let storagePath: string | null = null;
     let createdId: string | null = null;
     try {
       const id = crypto.randomUUID();
-      storagePath = await uploadVideoFile(selectedFile, id);
+      storagePath = await uploadVideoFile(selectedFile, id, {
+        onProgress: setUploadProgress,
+        signal: abortController.signal,
+      });
       const record = await createVideoAnalysis({
         id,
         title: title.trim() || selectedFile.name,
@@ -144,18 +167,29 @@ export default function NewVideoAnalysisPage() {
 
       router.push(`/video-analysis/${record.id}/processing`);
     } catch (submitError) {
-      console.error("Failed to upload video:", submitError);
+      const wasCancelled =
+        submitError instanceof DOMException && submitError.name === "AbortError";
+      if (!wasCancelled) {
+        console.error("Failed to upload video:", submitError);
+      }
       // Storage upload can succeed even when the DB row (or its quality
       // metrics) fails right after — without this, that file would sit
-      // in Storage forever with nothing referencing it.
+      // in Storage forever with nothing referencing it. Also covers the
+      // cancel path: the XHR may have already finished server-side by the
+      // time abort() reached it, so this is a safe best-effort cleanup
+      // either way (a no-op if nothing was actually stored).
       await cleanupFailedUpload({ storagePath, videoAnalysisId: createdId });
       setErrorMessage(
-        submitError instanceof Error
-          ? submitError.message
-          : "アップロードに失敗しました。もう一度お試しください。",
+        wasCancelled
+          ? "アップロードをキャンセルしました。"
+          : submitError instanceof Error
+            ? submitError.message
+            : "アップロードに失敗しました。もう一度お試しください。",
       );
       setPhase("ready");
+      setUploadProgress(0);
       setIsSubmitting(false);
+      abortControllerRef.current = null;
       submitGuardRef.current.finish();
     }
   };
@@ -202,7 +236,11 @@ export default function NewVideoAnalysisPage() {
         )}
 
         {phase === "analyzing_file" && (
-          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300"
+          >
             <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
             動画の長さ・解像度・明るさなどを実際に計測しています...
           </div>
@@ -219,6 +257,7 @@ export default function NewVideoAnalysisPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                maxLength={200}
                 className="mt-2 h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-sm text-white"
                 placeholder="例: 対〇〇高校戦"
               />
@@ -266,7 +305,11 @@ export default function NewVideoAnalysisPage() {
         )}
 
         {errorMessage && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          >
             {errorMessage}
           </div>
         )}
@@ -292,10 +335,34 @@ export default function NewVideoAnalysisPage() {
 
       {phase === "uploading" && (
         <div className="fixed inset-x-0 bottom-0 flex flex-col gap-3 bg-gradient-to-t from-black via-black to-transparent px-4 pb-6 pt-8">
-          <div className="flex h-14 w-full items-center justify-center gap-3 rounded-xl border border-white/15 text-sm text-zinc-300">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
-            アップロード中...
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-col gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm text-zinc-300"
+          >
+            <div className="flex items-center justify-between">
+              <span>アップロード中... {Math.round(uploadProgress * 100)}%</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuenow={Math.round(uploadProgress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="h-2 w-full overflow-hidden rounded-full bg-white/10"
+            >
+              <div
+                className="h-full rounded-full bg-cyan-500 transition-[width]"
+                style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+              />
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={handleCancelUpload}
+            className="flex h-11 w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 text-sm font-semibold text-red-400 transition active:scale-[0.98] active:bg-red-500/20"
+          >
+            キャンセル
+          </button>
         </div>
       )}
     </div>

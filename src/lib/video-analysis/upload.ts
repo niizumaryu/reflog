@@ -37,20 +37,69 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "video/webm": "webm",
 };
 
-export async function uploadVideoFile(file: File, analysisId: string): Promise<string> {
+// supabase-js's storage `upload()` uses fetch() under the hood and exposes
+// no upload-progress or cancellation hooks. For a 300MB video that means no
+// progress bar and no way to abort a slow upload, so this talks to the
+// Storage REST endpoint directly via XMLHttpRequest (which does expose
+// both) instead — same URL shape, same auth header, same multipart body
+// shape supabase-js itself sends (FormData with a 'cacheControl' field and
+// the file appended under an empty field name), so RLS/ownership behave
+// identically to going through the SDK.
+export async function uploadVideoFile(
+  file: File,
+  analysisId: string,
+  options: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
+): Promise<string> {
   const supabase = createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("ログインが必要です");
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    throw new Error("アップロード設定が不足しています");
+  }
 
   const extension = MIME_TO_EXTENSION[file.type] ?? "mp4";
-  const path = `${user.id}/${analysisId}/original.${extension}`;
+  const path = `${session.user.id}/${analysisId}/original.${extension}`;
 
-  const { error } = await supabase.storage
-    .from(MATCH_VIDEOS_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: true });
-  if (error) throw error;
+  await new Promise<void>((resolve, reject) => {
+    if (options.signal?.aborted) {
+      reject(new DOMException("アップロードをキャンセルしました", "AbortError"));
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${supabaseUrl}/storage/v1/object/${MATCH_VIDEOS_BUCKET}/${path}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+    xhr.setRequestHeader("apikey", anonKey);
+    xhr.setRequestHeader("x-upsert", "true");
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        options.onProgress?.(event.loaded / event.total);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`動画のアップロードに失敗しました(status ${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("アップロード中に通信エラーが発生しました"));
+    xhr.onabort = () =>
+      reject(new DOMException("アップロードをキャンセルしました", "AbortError"));
+
+    options.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+
+    const body = new FormData();
+    body.append("cacheControl", "3600");
+    body.append("", file);
+    xhr.send(body);
+  });
 
   return path;
 }
