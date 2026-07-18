@@ -1,6 +1,8 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { jstDateString } from "@/lib/date";
 import {
   DEFAULT_MATCH_DAY_TIME,
   DEFAULT_NOTIFY_TIME,
@@ -27,11 +29,6 @@ type ScheduleRow = {
 };
 
 const JST_TIME_ZONE = "Asia/Tokyo";
-
-function jstDateString(date: Date): string {
-  // en-CA gives an unambiguous YYYY-MM-DD format.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: JST_TIME_ZONE }).format(date);
-}
 
 function jstHour(date: Date): number {
   return Number(
@@ -80,6 +77,19 @@ const DEFAULT_EFFECTIVE_SETTINGS: EffectiveSettings = {
   notifyTime: DEFAULT_NOTIFY_TIME,
   matchDayTime: DEFAULT_MATCH_DAY_TIME,
 };
+
+// Plain `!==` leaks a timing signal proportional to the length of the
+// matching prefix, which in principle lets a remote attacker recover
+// CRON_SECRET one byte at a time. Low real-world exploitability over
+// HTTPS/serverless (network jitter dwarfs the signal), but the fix is
+// trivial and this route is the one place in the app a leaked secret
+// grants unauthenticated, cross-user, service-role-backed access.
+function timingSafeEqualString(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 type CronNotificationType = Exclude<NotificationType, "ai_advice">;
 
@@ -209,7 +219,7 @@ async function handle(request: NextRequest) {
   // means local-only" exception anymore.
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !authHeader || !timingSafeEqualString(authHeader, `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

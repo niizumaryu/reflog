@@ -1,5 +1,5 @@
 import { queueToast } from "@/components/Toast";
-import { getLegacyLocalMatches } from "@/lib/localMatchesLegacy";
+import { clearLegacyLocalMatches, getLegacyLocalMatches } from "@/lib/localMatchesLegacy";
 import { saveMatchesBulk, type NewMatchInput } from "@/lib/matches";
 
 function migrationFlagKey(userId: string): string {
@@ -49,5 +49,6 @@ export async function migrateLocalDataIfNeeded(userId: string): Promise<void> {
 
   await saveMatchesBulk(inputs, userId);
   localStorage.setItem(flagKey, "true");
+  clearLegacyLocalMatches();
   queueToast(`${legacyMatches.length}件のローカル記録を同期しました`);
 }

@@ -76,7 +76,7 @@ export function GoalPaceChart({
           実績（累計）
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-3 rounded-full bg-zinc-500" />
+          <span className="h-0.5 w-3 rounded-full bg-zinc-400" />
           目標ペース
         </span>
       </div>

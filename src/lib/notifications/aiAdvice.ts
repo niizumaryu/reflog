@@ -1,11 +1,8 @@
 import { analyzeKeywords, analyzeRecords, generateCoachAdvice } from "@/lib/coach";
+import { jstDateString } from "@/lib/date";
 import type { MatchRecord } from "@/lib/matches";
 import { createNotification, hasNotification } from "@/lib/notifications/center";
 import { getNotificationSettings } from "@/lib/notifications/settings";
-
-function jstDateKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(date);
-}
 
 // Builds a short "改善ポイント" + "継続ポイント" message from the same
 // rule-based coach analysis already used on /growth, and drops it into the
@@ -21,7 +18,7 @@ export async function maybeNotifyAiAdvice(
     const settings = await getNotificationSettings();
     if (!settings.enabled || !settings.aiAdviceEnabled) return;
 
-    const referenceId = jstDateKey(referenceDate);
+    const referenceId = jstDateString(referenceDate);
     if (await hasNotification("ai_advice", referenceId)) return;
 
     const analysis = analyzeRecords({ matches, referenceDate });

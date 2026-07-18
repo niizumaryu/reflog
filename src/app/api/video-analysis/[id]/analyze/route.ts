@@ -131,7 +131,8 @@ export async function POST(
     await supabase
       .from("video_analyses")
       .update({ status: "failed", error_message: message })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

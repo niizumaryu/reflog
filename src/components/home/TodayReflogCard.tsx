@@ -86,7 +86,7 @@ export default function TodayReflogCard({
 
         {reminderLabel && (
           <div>
-            <p className="text-[11px] text-zinc-500">前回の{reminderLabel}</p>
+            <p className="text-[11px] text-zinc-400">前回の{reminderLabel}</p>
             <Link
               href={`/matches/${latest.id}`}
               className="text-zinc-200 underline decoration-white/20 underline-offset-2"

@@ -9,6 +9,7 @@ import {
   generateCoachAdvice,
   getRecentlyEarnedBadges,
 } from "@/lib/coach";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { getMatches, type MatchRecord } from "@/lib/matches";
 
 function NavCard({
@@ -32,9 +33,9 @@ function NavCard({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-white">{title}</p>
-        <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+        <p className="mt-0.5 text-xs text-zinc-400">{description}</p>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-500">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-400">
         <path d="M9 18l6-6-6-6" />
       </svg>
     </Link>
@@ -43,13 +44,14 @@ function NavCard({
 
 export default function GrowthPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     getMatches()
       .then(setMatches)
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
-        setMatches([]);
+        setLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -70,7 +72,7 @@ export default function GrowthPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -84,12 +86,17 @@ export default function GrowthPage() {
       </header>
 
       <main className="relative mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-6">
+        <LoadErrorBanner
+          rawMessage={loadError}
+          fallbackMessage="データの取得に失敗しました。通信環境をご確認のうえ、ページを再読み込みしてください。表示中の分析・バッジは実際の記録を反映していない可能性があります。"
+        />
+
         <div className="space-y-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
               🤖 REFLOG AIコーチ
             </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-[11px] text-zinc-400">
               記録データをもとにしたルールベース分析
             </p>
           </div>
@@ -104,7 +111,7 @@ export default function GrowthPage() {
             ))}
           </ul>
           {analysis.hasData && (
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-zinc-400">
               総記録数 {analysis.totalRecords}件(Quick Log {analysis.quickLogCount}件 ・
               詳細記録 {analysis.detailedCount}件)
             </p>

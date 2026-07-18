@@ -26,7 +26,7 @@ export function UncertaintyCard({
       <p className="mt-3 text-sm text-zinc-200">{fields.conclusion}</p>
 
       {fields.evidence && (
-        <p className="mt-2 text-xs text-zinc-500">根拠: {fields.evidence}</p>
+        <p className="mt-2 text-xs text-zinc-400">根拠: {fields.evidence}</p>
       )}
 
       <div className="mt-4 space-y-2 border-t border-white/10 pt-4 text-xs text-zinc-400">

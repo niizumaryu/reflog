@@ -53,7 +53,7 @@ export function FeedbackControl({
             type="button"
             disabled={isSaving}
             onClick={() => handleRate(option.rating)}
-            className={`h-9 flex-1 rounded-lg border text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50 ${
+            className={`h-11 flex-1 rounded-lg border text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50 ${
               selectedRating === option.rating
                 ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-300"
                 : "border-white/15 bg-white/5 text-zinc-300"
@@ -68,9 +68,13 @@ export function FeedbackControl({
         onChange={(e) => setComment(e.target.value)}
         placeholder="コメント(任意)"
         rows={2}
-        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-zinc-500"
+        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-zinc-400"
       />
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

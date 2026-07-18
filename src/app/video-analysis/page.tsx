@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AnalysisCard } from "@/components/video-analysis/AnalysisCard";
 import { DemoDisclaimerBanner } from "@/components/video-analysis/DemoDisclaimerBanner";
 import { EmptyState } from "@/components/video-analysis/EmptyState";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { UsageSummaryCard } from "@/components/video-analysis/UsageSummaryCard";
 import { getUsageSummary } from "@/lib/video-analysis/planUsage";
 import { getVideoAnalyses } from "@/lib/video-analysis/videoAnalyses";
@@ -15,6 +16,7 @@ type LoadState = "loading" | "ready" | "error";
 export default function VideoAnalysisListPage() {
   const [analyses, setAnalyses] = useState<VideoAnalysisRecord[] | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function VideoAnalysisListPage() {
       })
       .catch((error: unknown) => {
         console.error("Failed to load video analyses:", error);
+        setLoadErrorMessage(error instanceof Error ? error.message : "unknown error");
         setLoadState("error");
       });
 
@@ -42,7 +45,7 @@ export default function VideoAnalysisListPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -72,9 +75,10 @@ export default function VideoAnalysisListPage() {
         {usage && <UsageSummaryCard usage={usage} />}
 
         {loadState === "error" && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            解析一覧の読み込みに失敗しました。もう一度お試しください。
-          </div>
+          <LoadErrorBanner
+            rawMessage={loadErrorMessage}
+            fallbackMessage="解析一覧の読み込みに失敗しました。もう一度お試しください。"
+          />
         )}
 
         {analyses !== null && analyses.length === 0 && (

@@ -19,7 +19,7 @@ export function PositionPieChart({
   ].filter((item) => item.value > 0);
 
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-zinc-500">記録がまだありません</p>;
+    return <p className="py-8 text-center text-sm text-zinc-400">記録がまだありません</p>;
   }
 
   return (

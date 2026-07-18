@@ -17,12 +17,16 @@ import {
   getRecentlyEarnedBadges,
   generateTodayAdvice,
 } from "@/lib/coach";
+import { jstDateString } from "@/lib/date";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { Toast, useQueuedToast } from "@/components/Toast";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { formatMatchDate, getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
-import { MonthlyMatchesBarChart } from "@/components/charts/MonthlyMatchesBarChart";
-import { MonthlyRatingLineChart } from "@/components/charts/MonthlyRatingLineChart";
-import { PositionPieChart } from "@/components/charts/PositionPieChart";
+import {
+  MonthlyMatchesBarChart,
+  MonthlyRatingLineChart,
+  PositionPieChart,
+} from "@/components/charts/dynamic";
 import { PieChart as PieChartIcon } from "lucide-react";
 import BadgePreviewCard from "@/components/home/BadgePreviewCard";
 import GrowthPreviewCard from "@/components/home/GrowthPreviewCard";
@@ -61,6 +65,7 @@ type ScheduleItem = {
 export default function Home() {
   const toastMessage = useQueuedToast();
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
+  const [matchesLoadError, setMatchesLoadError] = useState<string | null>(null);
   const router = useRouter();
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [annualGoal, setAnnualGoal] = useState(DEFAULT_ANNUAL_GOAL);
@@ -72,7 +77,7 @@ export default function Home() {
       .then(setMatches)
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
-        setMatches([]);
+        setMatchesLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -86,7 +91,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadSchedules = async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = jstDateString();
 
       const { data, error } = await supabase
         .from("schedules")
@@ -175,7 +180,7 @@ export default function Home() {
         <Link
           href="/notifications"
           aria-label="通知"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur transition active:bg-white/10"
+          className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur transition active:bg-white/10"
         >
           <svg
             width="18"
@@ -197,7 +202,7 @@ export default function Home() {
         <Link
           href="/settings"
           aria-label="設定"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur transition active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur transition active:bg-white/10"
         >
           <svg
             width="18"
@@ -229,7 +234,12 @@ export default function Home() {
 
           <TodayAdviceCard advice={todayAdvice} />
 
-          {matches === null ? null : !hasMatches ? (
+          {matchesLoadError ? (
+            <LoadErrorBanner
+              rawMessage={matchesLoadError}
+              fallbackMessage="記録の取得に失敗しました。通信環境をご確認のうえ、ページを再読み込みしてください。"
+            />
+          ) : matches === null ? null : !hasMatches ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
               <p className="text-sm text-zinc-400">
                 まだ記録がありません。まずは新しい試合を記録しましょう。
@@ -352,7 +362,7 @@ export default function Home() {
                             <p className="truncate text-sm font-semibold text-white">
                               {match.competition || "大会名未設定"}
                             </p>
-                            <p className="text-[11px] text-zinc-500">
+                            <p className="text-[11px] text-zinc-400">
                               {formatMatchDate(match.date)}
                               {match.entryType === "quick" && " ・ ⚡Quick Log"}
                             </p>

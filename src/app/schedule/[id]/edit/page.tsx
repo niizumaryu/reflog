@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { deleteSchedule, getScheduleById, updateSchedule } from "@/lib/schedules";
+import {
+  SCHEDULE_NOT_FOUND_MESSAGE,
+  deleteSchedule,
+  getScheduleById,
+  updateSchedule,
+} from "@/lib/schedules";
 import { LONG_TEXT_MAX, SHORT_TEXT_MAX } from "@/lib/inputLimits";
+import { isSessionExpiredError } from "@/lib/sessionError";
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
 
@@ -70,7 +76,20 @@ export default function EditSchedulePage() {
       router.push(`/schedule/${id}`);
     } catch (error) {
       console.error(error);
-      setFormError("更新に失敗しました。通信環境をご確認のうえ、もう一度お試しください。");
+      const message = error instanceof Error ? error.message : "";
+      if (message === SCHEDULE_NOT_FOUND_MESSAGE) {
+        // The record was deleted (e.g. from another tab) since this page
+        // loaded it — reuse the same "notfound" screen the initial load
+        // shows, rather than implying the save itself failed and inviting
+        // a retry that will fail identically forever.
+        setLoadState("notfound");
+        return;
+      }
+      setFormError(
+        isSessionExpiredError(message)
+          ? message
+          : "更新に失敗しました。通信環境をご確認のうえ、もう一度お試しください。",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -139,39 +158,50 @@ export default function EditSchedulePage() {
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">大会名</label>
+            <label htmlFor="schedule-title" className="mb-1 block text-sm text-zinc-400">大会名</label>
             <input
+              id="schedule-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={SHORT_TEXT_MAX}
+              aria-invalid={fieldErrors.title ? true : undefined}
+              aria-describedby={fieldErrors.title ? "schedule-title-error" : undefined}
               className={`w-full rounded-xl border bg-white/5 p-3 ${
                 fieldErrors.title ? "border-red-500/60" : "border-white/10"
               }`}
               placeholder="例：高校総体"
             />
             {fieldErrors.title && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.title}</p>
+              <p id="schedule-title-error" role="alert" className="mt-1 text-xs text-red-400">
+                {fieldErrors.title}
+              </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">日付</label>
+            <label htmlFor="schedule-date" className="mb-1 block text-sm text-zinc-400">日付</label>
             <input
+              id="schedule-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              aria-invalid={fieldErrors.date ? true : undefined}
+              aria-describedby={fieldErrors.date ? "schedule-date-error" : undefined}
               className={`w-full rounded-xl border bg-white/5 p-3 ${
                 fieldErrors.date ? "border-red-500/60" : "border-white/10"
               }`}
             />
             {fieldErrors.date && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.date}</p>
+              <p id="schedule-date-error" role="alert" className="mt-1 text-xs text-red-400">
+                {fieldErrors.date}
+              </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">時間</label>
+            <label htmlFor="schedule-time" className="mb-1 block text-sm text-zinc-400">時間</label>
             <input
+              id="schedule-time"
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
@@ -180,8 +210,9 @@ export default function EditSchedulePage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">会場</label>
+            <label htmlFor="schedule-place" className="mb-1 block text-sm text-zinc-400">会場</label>
             <input
+              id="schedule-place"
               value={place}
               onChange={(e) => setPlace(e.target.value)}
               maxLength={SHORT_TEXT_MAX}
@@ -191,8 +222,9 @@ export default function EditSchedulePage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">メモ</label>
+            <label htmlFor="schedule-memo" className="mb-1 block text-sm text-zinc-400">メモ</label>
             <textarea
+              id="schedule-memo"
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               maxLength={LONG_TEXT_MAX}
@@ -207,7 +239,22 @@ export default function EditSchedulePage() {
               aria-live="assertive"
               className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
             >
-              {formError}
+              <p>{formError}</p>
+              {isSessionExpiredError(formError) && (
+                <>
+                  <p className="mt-1 text-xs leading-relaxed">
+                    入力内容はこの画面に残っています。別のタブでログインし直してから、もう一度保存してください。
+                  </p>
+                  <Link
+                    href="/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-block text-xs font-semibold underline underline-offset-2"
+                  >
+                    ログイン画面を開く
+                  </Link>
+                </>
+              )}
             </div>
           )}
 

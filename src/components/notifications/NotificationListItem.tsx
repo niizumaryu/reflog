@@ -47,7 +47,7 @@ export function NotificationListItem({
           </p>
           <p className="mt-0.5 truncate text-sm font-bold text-white">{notification.title}</p>
           <p className="mt-0.5 whitespace-pre-line text-sm text-zinc-300">{notification.body}</p>
-          <p className="mt-1 text-[11px] text-zinc-500">
+          <p className="mt-1 text-[11px] text-zinc-400">
             {formatRelativeTime(notification.createdAt)}
           </p>
         </div>
@@ -56,7 +56,7 @@ export function NotificationListItem({
         type="button"
         onClick={onDelete}
         aria-label="削除"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition active:bg-white/10 active:text-red-400"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 transition active:bg-white/10 active:text-red-400"
       >
         <svg
           width="16"

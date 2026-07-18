@@ -196,7 +196,7 @@ export default function MatchDetailPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-[#07131f]/80 px-4 py-4 backdrop-blur">
         <Link
           href="/matches"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -372,7 +372,7 @@ export default function MatchDetailPage() {
               <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
                 AI審判コーチ
               </p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-zinc-400">
                 記録内容をもとにしたコーチからのアドバイス
               </p>
             </div>
@@ -408,7 +408,7 @@ export default function MatchDetailPage() {
               <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
                 今回のフィードバック
               </p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-zinc-400">
                 過去の記録と比較したREFLOG AIコーチの分析
               </p>
             </div>

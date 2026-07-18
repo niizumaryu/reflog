@@ -9,6 +9,7 @@ import {
   getPositionCounts,
   getYearlyMatchCount,
 } from "@/lib/analytics";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { formatMatchDate, getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
 
@@ -45,6 +46,7 @@ function RatingBar({ label, value }: { label: string; value: number }) {
 
 export default function DashboardPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const hasMatches = !!matches && matches.length > 0;
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function DashboardPage() {
       .then(setMatches)
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
-        setMatches([]);
+        setLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -63,7 +65,7 @@ export default function DashboardPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -107,7 +109,27 @@ export default function DashboardPage() {
         </button>
       </header>
 
-      {matches === null ? null : matches.length === 0 ? (
+      {loadError ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+          <LoadErrorBanner rawMessage={loadError} />
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              setMatches(null);
+              getMatches()
+                .then(setMatches)
+                .catch((error: unknown) => {
+                  console.error("Failed to load matches:", error);
+                  setLoadError(error instanceof Error ? error.message : "unknown error");
+                });
+            }}
+            className="flex h-12 items-center justify-center rounded-xl border border-white/15 px-6 text-sm font-semibold text-white transition active:bg-white/10"
+          >
+            再読み込み
+          </button>
+        </div>
+      ) : matches === null ? null : matches.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="text-sm text-zinc-400">
             まだ記録がありません。試合を記録するとダッシュボードにデータが表示されます。
@@ -246,7 +268,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
           よく入力される課題キーワード
         </p>
         {keywords.length === 0 ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-400">
             「改善点」の記録が増えると表示されます
           </p>
         ) : (
@@ -268,7 +290,7 @@ function DashboardContent({ matches }: { matches: MatchRecord[] }) {
         href={BASE_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 transition active:text-cyan-400"
+        className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-400 transition active:text-cyan-400"
       >
         資料・テンプレートを見る
         <svg

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { cloneElement, isValidElement, useId, useState, type ReactNode } from "react";
 import {
   EMPTY_NEW_MATCH_INPUT,
   type MatchRole,
@@ -13,6 +14,7 @@ import { PopularKeywordTags } from "@/components/matches/PopularKeywordTags";
 import { RatingInput } from "@/components/matches/RatingInput";
 import { toggleTag } from "@/lib/keywords";
 import { LONG_TEXT_MAX, SHORT_TEXT_MAX, URL_MAX } from "@/lib/inputLimits";
+import { isSessionExpiredError } from "@/lib/sessionError";
 
 const REFEREE_POSITIONS: RefereePosition[] = ["主審", "副審"];
 const MATCH_ROLES: MatchRole[] = ["トレイル", "リード", "センター"];
@@ -39,10 +41,12 @@ export type MatchFormProps = {
 };
 
 export const inputClass =
-  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500";
+  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500";
 
 export const errorInputClass =
-  "w-full rounded-xl border border-red-500/60 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500";
+  "w-full rounded-xl border border-red-500/60 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500";
+
+const FIELD_INPUT_TAGS = new Set(["input", "select", "textarea"]);
 
 export function Field({
   label,
@@ -55,14 +59,41 @@ export function Field({
   error?: string;
   children: ReactNode;
 }) {
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
+
+  // Only wire id/aria-invalid/aria-describedby onto the control when
+  // `children` is a single native form element (the common case: one
+  // <input>/<select>/<textarea> per Field) — fields that render a custom
+  // multi-element body (e.g. a button-group selector) fall back to the
+  // plain label/error rendering below rather than risk mis-cloning props
+  // onto something that doesn't expect them.
+  const canAssociate =
+    isValidElement(children) && typeof children.type === "string" && FIELD_INPUT_TAGS.has(children.type);
+
+  const control = canAssociate
+    ? cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        id: fieldId,
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": error ? errorId : undefined,
+      })
+    : children;
+
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <label
+        htmlFor={canAssociate ? fieldId : undefined}
+        className="text-xs font-semibold uppercase tracking-wider text-zinc-400"
+      >
         {label}
         {required && <span className="ml-1 text-cyan-400">*</span>}
       </label>
-      {children}
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {control}
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -150,7 +181,12 @@ export function MatchForm({
     event.preventDefault();
     if (isSubmitting) return;
     if (!validate()) return;
-    await onSubmit(values);
+    // validate() only checks competition.trim() for the required-field
+    // rule; without also trimming the saved value here, "  高校総体  "
+    // passes validation (not empty after trim) but is persisted with the
+    // surrounding whitespace intact, which then affects search matching
+    // and display everywhere the record is shown.
+    await onSubmit({ ...values, competition: values.competition.trim() });
   };
 
   return (
@@ -360,20 +396,39 @@ export function MatchForm({
             className={inputClass}
           />
         </Field>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-zinc-400">
           写真アップロードは今後のバージョンで対応予定です。
         </p>
       </SectionCard>
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#07131f] via-[#07131f] to-transparent px-4 pb-6 pt-8">
         {submitError && (
-          <p
+          <div
             role="alert"
             aria-live="assertive"
             className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
           >
-            {submitError}
-          </p>
+            {isSessionExpiredError(submitError) ? (
+              <>
+                <p className="font-semibold">
+                  ログインの有効期限が切れました
+                </p>
+                <p className="mt-1 leading-relaxed">
+                  入力内容はこの画面に残っています。別のタブでログインし直してから、もう一度保存してください。
+                </p>
+                <Link
+                  href="/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block font-semibold text-red-300 underline underline-offset-2"
+                >
+                  ログイン画面を開く
+                </Link>
+              </>
+            ) : (
+              <p>{submitError}</p>
+            )}
+          </div>
         )}
         <div className="flex flex-col gap-3">
           <button

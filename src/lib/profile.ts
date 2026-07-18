@@ -117,6 +117,17 @@ export async function updateProfile(input: Profile): Promise<void> {
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png"];
+// Maps validated MIME types to a Storage path extension. The extension
+// must never be derived from the client-supplied `file.name` (as opposed
+// to the browser/OS-reported, already-validated `file.type`) — a crafted
+// File with a dot-less or path-like name (e.g. built via `new File([...],
+// "../../x")`) would otherwise inject an unsanitized path segment into the
+// user's own Storage prefix. Mirrors the same approach already used for
+// video uploads in src/lib/video-analysis/upload.ts.
+const AVATAR_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
 
 export function validateAvatarFile(file: File): string | null {
   if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
@@ -138,7 +149,7 @@ export async function uploadAvatarImage(file: File): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("ログインが必要です");
 
-  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const extension = AVATAR_EXTENSION_BY_MIME_TYPE[file.type] || "jpg";
   const path = `${user.id}/${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage

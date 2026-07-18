@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   EMPTY_NEW_MATCH_INPUT,
@@ -8,6 +9,7 @@ import {
   type RefereePosition,
 } from "@/lib/matches";
 import { toggleTag } from "@/lib/keywords";
+import { isSessionExpiredError } from "@/lib/sessionError";
 import {
   errorInputClass,
   Field,
@@ -84,7 +86,10 @@ export function QuickMatchForm({
     const values: NewMatchInput = {
       ...QUICK_LOG_BASE,
       date,
-      competition,
+      // validate() only checks competition.trim() for the required-field
+      // rule; trim the saved value too, or "  高校総体  " would pass
+      // validation but persist with the surrounding whitespace intact.
+      competition: competition.trim(),
       refereePosition,
       ...ratingFields,
       goodPoints,
@@ -204,13 +209,32 @@ export function QuickMatchForm({
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#07131f] via-[#07131f] to-transparent px-4 pb-6 pt-8">
         {submitError && (
-          <p
+          <div
             role="alert"
             aria-live="assertive"
             className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
           >
-            {submitError}
-          </p>
+            {isSessionExpiredError(submitError) ? (
+              <>
+                <p className="font-semibold">
+                  ログインの有効期限が切れました
+                </p>
+                <p className="mt-1 leading-relaxed">
+                  入力内容はこの画面に残っています。別のタブでログインし直してから、もう一度保存してください。
+                </p>
+                <Link
+                  href="/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block font-semibold text-red-300 underline underline-offset-2"
+                >
+                  ログイン画面を開く
+                </Link>
+              </>
+            ) : (
+              <p>{submitError}</p>
+            )}
+          </div>
         )}
         <button
           type="submit"

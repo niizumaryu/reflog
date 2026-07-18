@@ -17,14 +17,14 @@ export function UsageSummaryCard({ usage }: { usage: UsageSummary }) {
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-xs text-zinc-500">今月の解析回数</dt>
+          <dt className="text-xs text-zinc-400">今月の解析回数</dt>
           <dd className="text-white">
             {usage.used}
             {usage.limit !== null ? ` / ${usage.limit}回` : "回(無制限)"}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">残り回数</dt>
+          <dt className="text-xs text-zinc-400">残り回数</dt>
           <dd className="text-white">
             {usage.remaining !== null ? `${usage.remaining}回` : "無制限"}
           </dd>
@@ -49,7 +49,7 @@ export function UsageSummaryCard({ usage }: { usage: UsageSummary }) {
         </p>
       )}
 
-      <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+      <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">
         プラン機能(有料プランへのアップグレードなど)は現在準備中です。
       </p>
     </div>

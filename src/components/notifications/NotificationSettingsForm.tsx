@@ -133,7 +133,7 @@ export function NotificationSettingsForm() {
                 <p className="text-sm font-semibold text-white">
                   {NOTIFICATION_TYPE_LABELS[type]}
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+                <p className="mt-0.5 text-xs text-zinc-400">{description}</p>
               </div>
               <ToggleSwitch
                 checked={settings[settingKey]}
@@ -150,7 +150,7 @@ export function NotificationSettingsForm() {
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
           <p className="text-sm font-semibold text-white">通知時刻</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-400">
             前日・未記録・月末振り返り・AIアドバイス通知を送る時刻(デフォルト20:00)
           </p>
           <input
@@ -164,7 +164,7 @@ export function NotificationSettingsForm() {
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
           <p className="text-sm font-semibold text-white">試合当日朝の通知時刻</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-400">
             試合当日の朝に届くリマインドの送信時刻(デフォルト08:00)
           </p>
           <input

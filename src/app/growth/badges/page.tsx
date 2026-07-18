@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCard } from "@/components/growth/BadgeCard";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { evaluateBadges } from "@/lib/coach";
 import { getMatches, type MatchRecord } from "@/lib/matches";
 
 export default function BadgesPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     getMatches()
       .then(setMatches)
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
-        setMatches([]);
+        setLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -30,7 +32,7 @@ export default function BadgesPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/growth"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -44,7 +46,9 @@ export default function BadgesPage() {
       </header>
 
       <main className="relative mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-6">
-        {matches !== null && matches.length === 0 && (
+        <LoadErrorBanner rawMessage={loadError} />
+
+        {!loadError && matches !== null && matches.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
             <p className="text-sm text-zinc-400">
               まだ記録がありません。試合を記録するとバッジの進捗が表示されます。
@@ -71,7 +75,7 @@ export default function BadgesPage() {
 
         {locked.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">未獲得</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">未獲得</p>
             <div className="space-y-3">
               {locked.map((badge) => (
                 <BadgeCard key={badge.key} badge={badge} />

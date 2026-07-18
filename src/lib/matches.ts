@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { MAX_MATCHES_PER_FETCH } from "@/lib/queryLimits";
 
 export type RefereePosition = "主審" | "副審" | "";
 
@@ -20,8 +21,6 @@ export const RATING_FIELDS = [
   "communicationRating",
   "staminaRating",
 ] as const;
-
-export type RatingField = (typeof RATING_FIELDS)[number];
 
 export type MatchRecord = {
   id: string;
@@ -194,7 +193,8 @@ export async function getMatches(): Promise<MatchRecord[]> {
     .from("matches")
     .select("*")
     .order("date", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(MAX_MATCHES_PER_FETCH);
   if (error) throw error;
   return (data ?? []).map(rowToMatchRecord);
 }

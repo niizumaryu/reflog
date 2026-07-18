@@ -70,7 +70,7 @@ export function NotificationStatusCard({ matches, schedules }: NotificationStatu
           {isActive ? (
             <span className="text-cyan-400">🟢 通知設定済み</span>
           ) : (
-            <span className="text-zinc-500">🔴 通知未設定</span>
+            <span className="text-zinc-400">🔴 通知未設定</span>
           )}
         </p>
         <p className="mt-0.5 truncate text-xs text-zinc-400">
@@ -92,7 +92,7 @@ export function NotificationStatusCard({ matches, schedules }: NotificationStatu
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="shrink-0 text-zinc-500"
+        className="shrink-0 text-zinc-400"
       >
         <path d="M9 18l6-6-6-6" />
       </svg>

@@ -74,4 +74,29 @@ describe("GET /api/cron/notifications — CRON_SECRET fail-closed", () => {
     );
     expect(response.status).toBe(200);
   });
+
+  // Regression: the auth check now uses a constant-time comparison
+  // (crypto.timingSafeEqual), which requires equal-length buffers and
+  // returns false — not throws — for a length mismatch. A same-length
+  // wrong guess exercises the actual byte-compare path; a
+  // shorter/longer guess exercises the length-mismatch short-circuit.
+  // Both must still resolve to a clean 401, not a 500 from an uncaught
+  // RangeError.
+  it("rejects a same-length wrong secret without throwing", async () => {
+    process.env.CRON_SECRET = "correct-secret"; // 14 chars
+    const { GET } = await import("@/app/api/cron/notifications/route");
+
+    const response = await GET(
+      makeRequest({ authorization: "Bearer wrong-secret12" }) as never, // also 14 chars
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects a shorter guess without throwing a length-mismatch error", async () => {
+    process.env.CRON_SECRET = "correct-secret";
+    const { GET } = await import("@/app/api/cron/notifications/route");
+
+    const response = await GET(makeRequest({ authorization: "Bearer x" }) as never);
+    expect(response.status).toBe(401);
+  });
 });

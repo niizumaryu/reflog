@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { MAX_SCHEDULES_PER_FETCH } from "@/lib/queryLimits";
 
 export type ScheduleRecord = {
   id: string;
@@ -57,7 +58,8 @@ export async function getSchedules(): Promise<ScheduleRecord[]> {
     .from("schedules")
     .select("*")
     .order("scheduled_date", { ascending: true, nullsFirst: false })
-    .order("scheduled_time", { ascending: true, nullsFirst: false });
+    .order("scheduled_time", { ascending: true, nullsFirst: false })
+    .limit(MAX_SCHEDULES_PER_FETCH);
   if (error) throw error;
   return (data ?? []).map(rowToScheduleRecord);
 }
@@ -93,12 +95,23 @@ export async function saveSchedule(
   return rowToScheduleRecord(data);
 }
 
+// Thrown when an update/delete's WHERE clause (id, scoped by RLS to the
+// current owner) matches zero rows — the record was deleted (e.g. from
+// another tab) between the edit page loading it and the user saving. A
+// bare `.update(...).eq("id", id)` with no `.select()` returns
+// `{ error: null }` in this case, which looks identical to a successful
+// save; callers must distinguish this from a real network/server error so
+// the UI doesn't tell the user "saved!" for an edit that silently did
+// nothing (see src/app/schedule/[id]/edit/page.tsx).
+export const SCHEDULE_NOT_FOUND_MESSAGE =
+  "この予定は見つかりませんでした。既に削除されている可能性があります。";
+
 export async function updateSchedule(
   id: string,
   input: NewScheduleInput,
 ): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("schedules")
     .update({
       title: input.title,
@@ -108,8 +121,10 @@ export async function updateSchedule(
       memo: input.memo,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(SCHEDULE_NOT_FOUND_MESSAGE);
 }
 
 export async function deleteSchedule(id: string): Promise<void> {

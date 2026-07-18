@@ -18,15 +18,15 @@ export function VideoQualityCard({ metrics }: { metrics: QualityMetrics }) {
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-xs text-zinc-500">サンプリングフレーム数</dt>
+          <dt className="text-xs text-zinc-400">サンプリングフレーム数</dt>
           <dd className="text-white">{metrics.sampledFrameCount}</dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">平均明るさ</dt>
+          <dt className="text-xs text-zinc-400">平均明るさ</dt>
           <dd className="text-white">{formatNumber(metrics.meanBrightness)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">暗いフレームの割合</dt>
+          <dt className="text-xs text-zinc-400">暗いフレームの割合</dt>
           <dd className="text-white">
             {metrics.darkFrameRatio === null
               ? "不明"
@@ -34,7 +34,7 @@ export function VideoQualityCard({ metrics }: { metrics: QualityMetrics }) {
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">シャープさ(参考値)</dt>
+          <dt className="text-xs text-zinc-400">シャープさ(参考値)</dt>
           <dd className="text-white">{formatNumber(metrics.blurProxyScore)}</dd>
         </div>
       </dl>

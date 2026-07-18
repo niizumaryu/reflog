@@ -134,7 +134,7 @@ export function NotificationToggle() {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
         <p className="text-sm font-semibold text-white">🔴 プッシュ通知（未対応）</p>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-400">
           このブラウザはプッシュ通知に対応していません
         </p>
       </div>
@@ -153,7 +153,7 @@ export function NotificationToggle() {
           <p className="text-sm font-semibold text-white">
             {loading ? "プッシュ通知" : isActive ? "🟢 通知設定済み" : "🔴 通知未設定"}
           </p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-400">
             試合前日・当日・未記録のリマインドを通知します
           </p>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 const RATING_VALUES = [1, 2, 3, 4, 5] as const;
 
 export function RatingInput({
@@ -13,12 +15,13 @@ export function RatingInput({
   onChange?: (value: number) => void;
   readOnly?: boolean;
 }) {
+  const labelId = useId();
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <span id={labelId} className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
         {label}
-      </label>
-      <div className="flex gap-2">
+      </span>
+      <div role="group" aria-labelledby={labelId} className="flex gap-2">
         {RATING_VALUES.map((n) => {
           const selected = n === value;
           if (readOnly) {
@@ -28,7 +31,7 @@ export function RatingInput({
                 className={`flex h-9 w-9 flex-1 items-center justify-center rounded-full border text-sm font-bold ${
                   selected
                     ? "border-cyan-500 bg-cyan-500 text-black"
-                    : "border-white/10 bg-white/5 text-zinc-500"
+                    : "border-white/10 bg-white/5 text-zinc-400"
                 }`}
               >
                 {n}

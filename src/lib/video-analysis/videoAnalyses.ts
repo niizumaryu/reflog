@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { MAX_VIDEO_ANALYSES_PER_FETCH } from "@/lib/queryLimits";
 import { MATCH_VIDEOS_BUCKET } from "@/lib/video-analysis/constants";
 import { isQuotaExceededError } from "@/lib/video-analysis/planUsage";
 import type {
@@ -69,7 +70,8 @@ export async function getVideoAnalyses(): Promise<VideoAnalysisRecord[]> {
   const { data, error } = await supabase
     .from("video_analyses")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(MAX_VIDEO_ANALYSES_PER_FETCH);
   if (error) throw error;
   return (data ?? []).map(rowToVideoAnalysis);
 }
@@ -352,17 +354,6 @@ function rowToFeedback(row: FeedbackRow): FeedbackEntry {
     comment: row.comment,
     createdAt: row.created_at,
   };
-}
-
-export async function getFeedback(videoAnalysisId: string): Promise<FeedbackEntry[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("analysis_feedback")
-    .select("*")
-    .eq("video_analysis_id", videoAnalysisId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(rowToFeedback);
 }
 
 export async function saveFeedback(

@@ -35,7 +35,7 @@ export function BadgeCard({ badge }: { badge: BadgeProgress }) {
             )}
           </div>
           <p className="mt-0.5 text-xs text-zinc-400">{badge.description}</p>
-          <p className="mt-1 text-[11px] text-zinc-500">条件: {badge.condition}</p>
+          <p className="mt-1 text-[11px] text-zinc-400">条件: {badge.condition}</p>
           {earned && badge.earnedAt && (
             <p className="mt-1 text-[11px] text-cyan-400">
               獲得日: {formatMatchDate(badge.earnedAt.slice(0, 10))}
@@ -46,7 +46,7 @@ export function BadgeCard({ badge }: { badge: BadgeProgress }) {
 
       {!earned && (
         <div className="mt-3">
-          <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-500">
+          <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-400">
             <span>進捗</span>
             <span>
               {badge.progressCurrent} / {badge.progressTarget}

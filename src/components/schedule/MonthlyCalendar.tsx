@@ -65,7 +65,7 @@ export function MonthlyCalendar({ schedules }: { schedules: ScheduleRecord[] }) 
           type="button"
           onClick={() => goToMonth(-1)}
           aria-label="前月"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
         >
           ‹
         </button>
@@ -76,7 +76,7 @@ export function MonthlyCalendar({ schedules }: { schedules: ScheduleRecord[] }) 
           type="button"
           onClick={() => goToMonth(1)}
           aria-label="翌月"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
         >
           ›
         </button>
@@ -138,7 +138,7 @@ export function MonthlyCalendar({ schedules }: { schedules: ScheduleRecord[] }) 
           {selectedLabel}の予定
         </p>
         {selectedSchedules.length === 0 ? (
-          <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-500">
+          <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-400">
             予定はありません
           </p>
         ) : (

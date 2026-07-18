@@ -29,7 +29,7 @@ export function AnalysisStatusCard({
           aria-valuemax={100}
         />
       </div>
-      <p className="mt-2 text-right text-xs text-zinc-500">{progress}%</p>
+      <p className="mt-2 text-right text-xs text-zinc-400">{progress}%</p>
 
       {status === "failed" && errorMessage && (
         <p className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">

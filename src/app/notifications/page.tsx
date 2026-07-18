@@ -31,6 +31,7 @@ export default function NotificationsPage() {
   const [type, setType] = useState<NotificationType | "all">("all");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,11 +40,22 @@ export default function NotificationsPage() {
     const timer = setTimeout(() => {
       listNotifications({ status, type, query })
         .then((data) => {
-          if (!cancelled) setNotifications(data);
+          if (!cancelled) {
+            setNotifications(data);
+            setError(null);
+          }
         })
         .catch((loadError: unknown) => {
           console.error("Failed to load notifications:", loadError);
-          if (!cancelled) setError("通知の読み込みに失敗しました");
+          if (!cancelled) {
+            // `notifications` must move out of its initial `null` even on
+            // failure — otherwise the "読み込み中..." branch below (gated
+            // on `notifications === null`) renders forever underneath the
+            // error banner instead of ever showing a distinguishable
+            // error state with something the user can act on.
+            setNotifications([]);
+            setError("通知の読み込みに失敗しました");
+          }
         });
     }, 250);
 
@@ -51,7 +63,7 @@ export default function NotificationsPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [status, type, query]);
+  }, [status, type, query, retryToken]);
 
   const unreadCount = useMemo(
     () => (notifications ?? []).filter((n) => !n.isRead).length,
@@ -103,7 +115,7 @@ export default function NotificationsPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-[#07131f]/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -140,7 +152,7 @@ export default function NotificationsPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="通知を検索"
-          className="w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          className="w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
         />
 
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -189,13 +201,28 @@ export default function NotificationsPage() {
         </div>
 
         {error && (
-          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
-            {error}
-          </p>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setNotifications(null);
+                setRetryToken((t) => t + 1);
+              }}
+              className="font-semibold underline underline-offset-2"
+            >
+              再読み込み
+            </button>
+          </div>
         )}
 
-        {notifications === null ? (
-          <p className="py-12 text-center text-sm text-zinc-500">読み込み中...</p>
+        {error ? null : notifications === null ? (
+          <p className="py-12 text-center text-sm text-zinc-400">読み込み中...</p>
         ) : notifications.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
             <p className="text-sm text-zinc-400">通知はありません。</p>

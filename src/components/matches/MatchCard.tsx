@@ -39,7 +39,7 @@ export function MatchCard({ match }: { match: MatchRecord }) {
             </span>
           ))}
           {match.keywords.length > 4 && (
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-zinc-400">
               +{match.keywords.length - 4}
             </span>
           )}

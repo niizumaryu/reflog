@@ -1,12 +1,9 @@
+import { jstDateString } from "@/lib/date";
 import { sortByNewest, type MatchRecord } from "@/lib/matches";
 import type { ScheduleLike, TodayAdvice } from "@/lib/coach/types";
 
 function truncate(text: string, max = 32): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
-function toDateOnly(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 function daysSince(referenceDate: Date, isoDate: string): number | null {
@@ -34,8 +31,8 @@ export function generateTodayAdvice(
     };
   }
 
-  const today = toDateOnly(referenceDate);
-  const tomorrow = toDateOnly(new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000));
+  const today = jstDateString(referenceDate);
+  const tomorrow = jstDateString(new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000));
   const hasScheduleOn = (isoDate: string) =>
     schedules.some((s) => s.scheduled_date === isoDate);
 

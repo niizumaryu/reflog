@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { MatchCard } from "@/components/matches/MatchCard";
 import {
   getMatches,
@@ -35,6 +36,7 @@ function matchesSearch(match: MatchRecord, query: string): boolean {
 export default function MatchesPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [query, setQuery] = useState("");
@@ -47,6 +49,7 @@ export default function MatchesPage() {
       })
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
+        setErrorMessage(error instanceof Error ? error.message : "unknown error");
         setLoadState("error");
       });
   }, []);
@@ -74,7 +77,7 @@ export default function MatchesPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-[#07131f]/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -100,9 +103,10 @@ export default function MatchesPage() {
 
       <main className="relative flex-1 space-y-4 px-4 py-6">
         {loadState === "error" && (
-          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
-            記録の取得に失敗しました。通信環境をご確認のうえ、もう一度お試しください。
-          </p>
+          <LoadErrorBanner
+            rawMessage={errorMessage}
+            fallbackMessage="記録の取得に失敗しました。通信環境をご確認のうえ、もう一度お試しください。"
+          />
         )}
 
         {hasAnyMatches && (
@@ -112,7 +116,7 @@ export default function MatchesPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="大会名・会場・チーム・キーワードなどで検索"
-              className="w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              className="w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             />
 
             <div className="flex flex-wrap items-center gap-2">
@@ -182,7 +186,7 @@ export default function MatchesPage() {
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-zinc-500"
+                  className="text-zinc-400"
                 >
                   <rect x="4" y="5" width="16" height="15" rx="2" />
                   <path d="M8 3v4M16 3v4M4 10h16" />

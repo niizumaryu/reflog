@@ -16,3 +16,27 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+:focus-visible {
+  outline: 2px solid #fb923c;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The app uses Tailwind's `transition`/`animate-pulse`/`animate-spin` and
+   `active:scale-[…]` press effects pervasively (button presses, chart/list
+   skeletons, spinners). None of that is respected by default, so a user who
+   has set prefers-reduced-motion (a vestibular-disorder accommodation, not
+   a mere preference) gets zero accommodation anywhere in the app. This
+   collapses all animation/transition durations to effectively zero rather
+   than trying to enumerate every animated utility class individually. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

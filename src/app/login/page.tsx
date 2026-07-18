@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { sanitizeRedirectPath } from "@/lib/safeRedirect";
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
+  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
 
 function LoginForm() {
   const router = useRouter();
@@ -123,7 +123,7 @@ function LoginForm() {
           Googleでログイン
         </button>
 
-        <div className="flex items-center gap-3 text-xs text-zinc-600">
+        <div className="flex items-center gap-3 text-xs text-zinc-400">
           <div className="h-px flex-1 bg-white/10" />
           または
           <div className="h-px flex-1 bg-white/10" />

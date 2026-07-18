@@ -1,5 +1,3 @@
-import type { AnalysisEventStage } from "@/lib/video-analysis/types";
-
 export const MATCH_VIDEOS_BUCKET = "match-videos";
 
 // Client-side upload limits. Enforced in validateVideoFile()/
@@ -51,15 +49,6 @@ export const QUALITY_SOFT_FAILS = {
 };
 
 export const FRAME_SAMPLE_COUNT: number = 12;
-
-export const PIPELINE_STAGES: { stage: AnalysisEventStage; progressAfter: number }[] = [
-  { stage: "court_detection", progressAfter: 20 },
-  { stage: "person_detection", progressAfter: 40 },
-  { stage: "ball_detection", progressAfter: 60 },
-  { stage: "event_detection", progressAfter: 80 },
-];
-
-export const COACHING_PROGRESS_AFTER = 100;
 
 export const QUALITY_REASON_LABELS: Record<string, string> = {
   insufficient_data_for_analysis: "解析に必要なデータが不足しています",

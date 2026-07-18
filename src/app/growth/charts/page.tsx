@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CumulativeMatchesChart } from "@/components/charts/CumulativeMatchesChart";
-import { EntryTypePieChart } from "@/components/charts/EntryTypePieChart";
-import { KeywordTrendChart } from "@/components/charts/KeywordTrendChart";
-import { MonthlyMatchesBarChart } from "@/components/charts/MonthlyMatchesBarChart";
-import { MonthlyRatingLineChart } from "@/components/charts/MonthlyRatingLineChart";
-import { PositionPieChart } from "@/components/charts/PositionPieChart";
+import {
+  CumulativeMatchesChart,
+  EntryTypePieChart,
+  KeywordTrendChart,
+  MonthlyMatchesBarChart,
+  MonthlyRatingLineChart,
+  PositionPieChart,
+} from "@/components/charts/dynamic";
 import {
   PERIOD_LABELS,
   PERIOD_OPTIONS,
@@ -17,6 +19,7 @@ import {
   type PeriodOption,
 } from "@/lib/coach";
 import { getPositionCounts } from "@/lib/analytics";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 import { getMatches, getOverallAverage, type MatchRecord } from "@/lib/matches";
 
 function ChartCard({
@@ -37,13 +40,14 @@ function ChartCard({
 export default function GrowthChartsPage() {
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
   const [period, setPeriod] = useState<PeriodOption>("6m");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     getMatches()
       .then(setMatches)
       .catch((error: unknown) => {
         console.error("Failed to load matches:", error);
-        setMatches([]);
+        setLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -88,7 +92,7 @@ export default function GrowthChartsPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/growth"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -102,6 +106,8 @@ export default function GrowthChartsPage() {
       </header>
 
       <main className="relative mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-6">
+        <LoadErrorBanner rawMessage={loadError} />
+
         <div
           role="group"
           aria-label="集計期間"
@@ -144,7 +150,7 @@ export default function GrowthChartsPage() {
 
         <ChartCard title="担当ポジションの割合">
           <PositionPieChart referee={refereeCount} assistant={assistantCount} unset={unsetCount} />
-          <p className="text-center text-xs text-zinc-500">
+          <p className="text-center text-xs text-zinc-400">
             主審 {refereeCount}件 ・ 副審 {assistantCount}件
             {unsetCount > 0 && ` ・ 未設定 ${unsetCount}件`}
           </p>

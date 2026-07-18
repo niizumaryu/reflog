@@ -22,11 +22,13 @@ import { evaluateBadges, getRecentlyEarnedBadges } from "@/lib/coach";
 import { generateGrowthPlan } from "@/lib/growthPlan";
 import { formatMatchDate, getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
 import { exportReportToPdf } from "@/lib/pdfExport";
-import { GoalPaceChart } from "@/components/charts/GoalPaceChart";
-import { MonthlyMatchesBarChart } from "@/components/charts/MonthlyMatchesBarChart";
-import { MonthlyRatingLineChart } from "@/components/charts/MonthlyRatingLineChart";
-import { PositionPieChart } from "@/components/charts/PositionPieChart";
-import { YearComparisonBarChart } from "@/components/charts/YearComparisonBarChart";
+import {
+  GoalPaceChart,
+  MonthlyMatchesBarChart,
+  MonthlyRatingLineChart,
+  PositionPieChart,
+  YearComparisonBarChart,
+} from "@/components/charts/dynamic";
 
 function StatTile({ label, value }: { label: string; value: string | number }) {
   return (
@@ -56,16 +58,16 @@ function KeywordRankingList({
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] text-zinc-500">{title}</p>
+      <p className="mb-1.5 text-[11px] text-zinc-400">{title}</p>
       {items.length === 0 ? (
-        <p className="text-xs text-zinc-600">記録が増えると表示されます</p>
+        <p className="text-xs text-zinc-400">記録が増えると表示されます</p>
       ) : (
         <ol className="space-y-1 text-sm text-white">
           {items.map(({ word, count }, index) => (
             <li key={word} className="flex items-center gap-2">
               <span className="text-orange-400">{index + 1}.</span>
               <span className="truncate">{word}</span>
-              <span className="ml-auto shrink-0 text-xs text-zinc-500">×{count}</span>
+              <span className="ml-auto shrink-0 text-xs text-zinc-400">×{count}</span>
             </li>
           ))}
         </ol>
@@ -86,10 +88,10 @@ function RatingMonthlyGrid({
           key={d.month}
           className="flex flex-col items-center gap-0.5 rounded-lg bg-white/[0.03] py-1.5"
         >
-          <span className="text-[9px] text-zinc-500">{d.label}</span>
+          <span className="text-[9px] text-zinc-400">{d.label}</span>
           <span
             className={`text-xs font-bold ${
-              d.average === null ? "text-zinc-600" : "text-orange-400"
+              d.average === null ? "text-zinc-400" : "text-orange-400"
             }`}
           >
             {d.average === null ? "-" : d.average.toFixed(1)}
@@ -144,7 +146,7 @@ function YearComparison({
   hasPrevData: boolean;
 }) {
   if (!hasPrevData) {
-    return <p className="text-sm text-zinc-500">前年データはまだありません</p>;
+    return <p className="text-sm text-zinc-400">前年データはまだありません</p>;
   }
 
   return (
@@ -188,14 +190,25 @@ export default function ReportPage() {
   const [goalError, setGoalError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const loadMatches = () => {
     getMatches()
-      .then(setMatches)
+      .then((data) => {
+        setMatches(data);
+        setError(null);
+      })
       .catch((loadError: unknown) => {
         console.error("Failed to load matches:", loadError);
-        setError("データの読み込みに失敗しました");
-        setMatches([]);
+        // Keep `matches` as `null` (not `[]`) on failure — every derived
+        // value below already treats `null` as "not loaded yet" and falls
+        // back safely, whereas `[]` reads identically to "this year has no
+        // records", which would show the wrong empty-state message for a
+        // failed fetch instead of a distinguishable error.
+        setError("データの読み込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください。");
       });
+  };
+
+  useEffect(() => {
+    loadMatches();
   }, []);
 
   useEffect(() => {
@@ -360,7 +373,7 @@ export default function ReportPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -427,12 +440,23 @@ export default function ReportPage() {
         </div>
 
         {error && (
-          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
-            {error}
-          </p>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={loadMatches}
+              className="font-semibold underline underline-offset-2"
+            >
+              再読み込み
+            </button>
+          </div>
         )}
 
-        {matches !== null && !hasData && (
+        {!error && matches !== null && !hasData && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
             <p className="text-sm text-zinc-400">
               この年の記録はまだありません
@@ -538,7 +562,7 @@ export default function ReportPage() {
                 style={{ width: `${Math.min(100, achievementRate)}%` }}
               />
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               {summary.totalMatchCount} / {goal} 試合
             </p>
           </div>
@@ -638,7 +662,7 @@ export default function ReportPage() {
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <SectionTitle>前半・後半の評価比較</SectionTitle>
             {halfSeasonComparison.firstHalfCount === 0 && halfSeasonComparison.secondHalfCount === 0 ? (
-              <p className="text-sm text-zinc-500">評価記録がまだありません</p>
+              <p className="text-sm text-zinc-400">評価記録がまだありません</p>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-white/[0.03] p-3">
@@ -648,7 +672,7 @@ export default function ReportPage() {
                       ? halfSeasonComparison.firstHalfAverage.toFixed(1)
                       : "-"}
                   </p>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-zinc-400">
                     {halfSeasonComparison.firstHalfCount}件
                   </p>
                 </div>
@@ -659,7 +683,7 @@ export default function ReportPage() {
                       ? halfSeasonComparison.secondHalfAverage.toFixed(1)
                       : "-"}
                   </p>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-zinc-400">
                     {halfSeasonComparison.secondHalfCount}件
                   </p>
                 </div>
@@ -675,7 +699,7 @@ export default function ReportPage() {
               </Link>
             </div>
             {recentSeasonBadges.length === 0 ? (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-zinc-400">
                 このシーズンではまだバッジを獲得していません
               </p>
             ) : (
@@ -725,7 +749,7 @@ export default function ReportPage() {
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <SectionTitle>よく出る課題キーワード</SectionTitle>
             {topKeywords.length === 0 ? (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-zinc-400">
                 「改善点」「次回の課題」「自由メモ」の記録が増えると表示されます
               </p>
             ) : (
@@ -754,7 +778,7 @@ export default function ReportPage() {
 >
             <div>
               <SectionTitle>AI年間分析</SectionTitle>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-zinc-400">
                 今年のデータをもとにしたAIコーチからの分析
               </p>
             </div>
@@ -789,7 +813,7 @@ export default function ReportPage() {
 >
             <div>
               <SectionTitle>AI育成プラン</SectionTitle>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-zinc-400">
                 年間分析と直近の記録をもとにした今月の育成プラン
               </p>
             </div>

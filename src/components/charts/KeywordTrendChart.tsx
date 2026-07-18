@@ -13,7 +13,7 @@ export function KeywordTrendChart({
 }) {
   if (!keyword || data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-zinc-500">
+      <p className="py-8 text-center text-sm text-zinc-400">
         改善点の記録が増えると表示されます
       </p>
     );

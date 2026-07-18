@@ -35,7 +35,7 @@ export default function PrivacyPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/settings"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
       </header>
 
       <main className="relative mx-auto w-full max-w-xl flex-1 space-y-6 px-4 py-6">
-        <p className="text-xs text-zinc-500">最終改定日: {EFFECTIVE_DATE}</p>
+        <p className="text-xs text-zinc-400">最終改定日: {EFFECTIVE_DATE}</p>
 
         <p className="text-sm leading-relaxed text-zinc-400">
           REFLOG(以下「本サービス」)は、ユーザーの皆様の個人情報を適切に取り扱うことが重要な責務であると認識し、以下のとおりプライバシーポリシー(以下「本ポリシー」)を定めます。
@@ -200,7 +200,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <p className="pb-6 text-center text-xs text-zinc-600">
+        <p className="pb-6 text-center text-xs text-zinc-400">
           <Link href="/terms" className="text-orange-500">
             利用規約
           </Link>

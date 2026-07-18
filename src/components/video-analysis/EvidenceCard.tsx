@@ -16,7 +16,7 @@ export function EvidenceCard({
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
           {stageLabel}
         </p>
         {event.timestampSeconds !== null && onSeek && (

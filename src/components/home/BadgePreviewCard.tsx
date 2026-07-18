@@ -22,7 +22,7 @@ export default function BadgePreviewCard({
       </div>
 
       {recentBadges.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-400">
           記録を続けると、ここに獲得したバッジが表示されます。
         </p>
       ) : (

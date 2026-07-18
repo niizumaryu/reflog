@@ -604,6 +604,7 @@ create index if not exists video_analyses_user_id_created_at_idx
 create or replace function public.enforce_video_analysis_status_transition()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   if new.status = old.status then
@@ -838,6 +839,7 @@ create policy "Users can delete their own analysis feedback"
 create or replace function public.enforce_video_analysis_ownership()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 declare
   owner_id uuid;
@@ -989,6 +991,7 @@ alter table public.profiles
 create or replace function public.protect_profile_plan_columns()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   if current_setting('reflog.bypass_plan_guard', true) = 'on' then
@@ -1049,6 +1052,7 @@ create policy "Authenticated users can view plan limits"
 create or replace function public.enforce_video_analysis_quota()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 declare
   v_plan text;

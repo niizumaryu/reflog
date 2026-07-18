@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { ProfileAvatar } from "@/components/AvatarIcons";
 import { NotificationToggle } from "@/components/notifications/NotificationToggle";
@@ -11,6 +11,16 @@ import { getMatches } from "@/lib/matches";
 import { createClient } from "@/lib/supabase/client";
 
 const BASE_STORE_URL = "https://bskreferee.base.shop/";
+
+// Service Worker caches (public/sw.js) are keyed by URL only, not per-user —
+// on a shared device, a stale cached page from this session could otherwise
+// be served to the next signed-in user if they go offline before the cache
+// is naturally refreshed.
+async function clearAppCaches(): Promise<void> {
+  if (typeof window === "undefined" || !("caches" in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(keys.map((key) => caches.delete(key)));
+}
 
 function SettingsRow({
   href,
@@ -28,7 +38,7 @@ function SettingsRow({
       <div>
         <p className="text-sm font-semibold text-white">{label}</p>
         {description && (
-          <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">{description}</p>
         )}
       </div>
       <svg
@@ -40,7 +50,7 @@ function SettingsRow({
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-zinc-500"
+        className="text-zinc-400"
       >
         {external ? <path d="M7 17L17 7M7 7h10v10" /> : <path d="M9 18l6-6-6-6" />}
       </svg>
@@ -73,6 +83,44 @@ export default function SettingsPage() {
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isConfirmOpen) return;
+    cancelButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsConfirmOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const trigger = deleteTriggerRef.current;
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      trigger?.focus();
+    };
+  }, [isConfirmOpen]);
 
   const handleExportCsv = async () => {
     setError(null);
@@ -96,10 +144,25 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      await clearAppCaches();
+      router.push("/login");
+      router.refresh();
+    } catch (logoutError) {
+      console.error("Failed to log out:", logoutError);
+      setIsLoggingOut(false);
+      setError(
+        logoutError instanceof Error
+          ? logoutError.message
+          : "ログアウトに失敗しました。通信環境をご確認のうえ、もう一度お試しください。",
+      );
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -118,6 +181,7 @@ export default function SettingsPage() {
       }
       const supabase = createClient();
       await supabase.auth.signOut();
+      await clearAppCaches();
       router.push("/login");
       router.refresh();
     } catch (deleteError) {
@@ -138,7 +202,7 @@ export default function SettingsPage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-black/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -183,7 +247,7 @@ export default function SettingsPage() {
                   @{profile.username}
                 </p>
               )}
-              <p className="mt-0.5 truncate text-xs text-zinc-500">
+              <p className="mt-0.5 truncate text-xs text-zinc-400">
                 {user.email}
               </p>
             </div>
@@ -196,7 +260,7 @@ export default function SettingsPage() {
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="shrink-0 text-zinc-500"
+              className="shrink-0 text-zinc-400"
             >
               <path d="M9 18l6-6-6-6" />
             </svg>
@@ -263,7 +327,7 @@ export default function SettingsPage() {
               <p className="text-sm font-semibold text-white">
                 データをエクスポート
               </p>
-              <p className="mt-0.5 text-xs text-zinc-500">
+              <p className="mt-0.5 text-xs text-zinc-400">
                 すべての試合記録をCSVでダウンロード
               </p>
             </div>
@@ -276,7 +340,7 @@ export default function SettingsPage() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-zinc-500"
+              className="text-zinc-400"
             >
               <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
             </svg>
@@ -298,11 +362,13 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-sm font-semibold text-white transition active:bg-white/10"
+            disabled={isLoggingOut}
+            className="flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-sm font-semibold text-white transition active:bg-white/10 disabled:opacity-60"
           >
-            ログアウト
+            {isLoggingOut ? "ログアウト中..." : "ログアウト"}
           </button>
           <button
+            ref={deleteTriggerRef}
             type="button"
             onClick={handleDeleteAccount}
             disabled={isDeleting}
@@ -324,9 +390,15 @@ export default function SettingsPage() {
 
       {isConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-sm space-y-5 rounded-t-3xl border border-white/10 bg-zinc-950 p-6 sm:rounded-3xl">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-title"
+            className="w-full max-w-sm space-y-5 rounded-t-3xl border border-white/10 bg-zinc-950 p-6 sm:rounded-3xl"
+          >
             <div className="space-y-2 text-center">
-              <h2 className="text-base font-bold text-white">
+              <h2 id="delete-confirm-title" className="text-base font-bold text-white">
                 本当に削除しますか？
               </h2>
               <p className="text-xs leading-relaxed text-zinc-400">
@@ -343,6 +415,7 @@ export default function SettingsPage() {
                 {isDeleting ? "削除中..." : "削除する"}
               </button>
               <button
+                ref={cancelButtonRef}
                 type="button"
                 onClick={() => setIsConfirmOpen(false)}
                 disabled={isDeleting}

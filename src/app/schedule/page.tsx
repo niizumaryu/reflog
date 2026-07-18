@@ -9,22 +9,23 @@ import {
   type ScheduleRecord,
 } from "@/lib/schedules";
 import { MonthlyCalendar } from "@/components/schedule/MonthlyCalendar";
+import { LoadErrorBanner } from "@/components/LoadErrorBanner";
 
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState<ScheduleRecord[] | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
     getSchedules()
       .then((data) => {
         setSchedules(data);
-        setLoadError(false);
+        setLoadError(null);
       })
       .catch((error: unknown) => {
         console.error("Failed to load schedules:", error);
         setSchedules([]);
-        setLoadError(true);
+        setLoadError(error instanceof Error ? error.message : "unknown error");
       });
   }, []);
 
@@ -35,7 +36,7 @@ export default function SchedulePage() {
       <header className="relative flex items-center gap-3 border-b border-white/10 bg-[#081824]/80 px-4 py-4 backdrop-blur">
         <Link
           href="/"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
           aria-label="戻る"
         >
           <svg
@@ -91,10 +92,11 @@ export default function SchedulePage() {
             <p className="text-sm text-zinc-400">読み込み中...</p>
           </div>
         ) : loadError ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <p className="text-sm text-red-400">
-              予定の読み込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください。
-            </p>
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+            <LoadErrorBanner
+              rawMessage={loadError}
+              fallbackMessage="予定の読み込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください。"
+            />
           </div>
         ) : view === "calendar" ? (
           <MonthlyCalendar schedules={schedules} />
@@ -110,7 +112,7 @@ export default function SchedulePage() {
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-zinc-500"
+                className="text-zinc-400"
               >
                 <rect x="4" y="5" width="16" height="15" rx="2" />
                 <path d="M8 3v4M16 3v4M4 10h16" />

@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  Suspense,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { DEFAULT_AVATARS, ProfileAvatar } from "@/components/AvatarIcons";
 import { queueToast } from "@/components/Toast";
@@ -22,7 +31,9 @@ import { SHORT_TEXT_MAX } from "@/lib/inputLimits";
 const USERNAME_MAX_LENGTH = 20;
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
+  "w-full rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500";
+
+const FIELD_INPUT_TAGS = new Set(["input", "select", "textarea"]);
 
 function Field({
   label,
@@ -31,12 +42,22 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const fieldId = useId();
+  const canAssociate =
+    isValidElement(children) && typeof children.type === "string" && FIELD_INPUT_TAGS.has(children.type);
+  const control = canAssociate
+    ? cloneElement(children as React.ReactElement<Record<string, unknown>>, { id: fieldId })
+    : children;
+
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <label
+        htmlFor={canAssociate ? fieldId : undefined}
+        className="text-xs font-semibold uppercase tracking-wider text-zinc-400"
+      >
         {label}
       </label>
-      {children}
+      {control}
     </div>
   );
 }
@@ -149,7 +170,7 @@ function ProfileForm() {
         {!isOnboarding && (
           <Link
             href="/settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white active:bg-white/10"
             aria-label="戻る"
           >
             <svg
@@ -210,7 +231,7 @@ function ProfileForm() {
               className="hidden"
               onChange={handleFileChange}
             />
-            <p className="text-center text-[11px] text-zinc-600">
+            <p className="text-center text-[11px] text-zinc-400">
               JPG / PNG、5MBまで
             </p>
           </div>
@@ -264,7 +285,7 @@ function ProfileForm() {
                 {usernameError}
               </p>
             )}
-            <p className="text-[11px] text-zinc-600">
+            <p className="text-[11px] text-zinc-400">
               英数字とアンダースコアのみ、3〜20文字
             </p>
           </Field>
