@@ -59,18 +59,21 @@ export type Database = {
         Row: {
           plan_type: string;
           monthly_analysis_limit: number | null;
+          retention_days: number | null;
           label: string;
           updated_at: string;
         };
         Insert: {
           plan_type: string;
           monthly_analysis_limit?: number | null;
+          retention_days?: number | null;
           label?: string;
           updated_at?: string;
         };
         Update: {
           plan_type?: string;
           monthly_analysis_limit?: number | null;
+          retention_days?: number | null;
           label?: string;
           updated_at?: string;
         };
@@ -382,6 +385,7 @@ export type Database = {
           progress: number;
           is_demo: boolean;
           error_message: string | null;
+          original_video_deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -402,6 +406,7 @@ export type Database = {
           progress?: number;
           is_demo?: boolean;
           error_message?: string | null;
+          original_video_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -422,6 +427,7 @@ export type Database = {
           progress?: number;
           is_demo?: boolean;
           error_message?: string | null;
+          original_video_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

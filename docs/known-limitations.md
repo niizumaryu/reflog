@@ -98,3 +98,11 @@ REFLOGはPWA(Webアプリ)として実装されており、Next.jsの `manifest.
 - `text-zinc-*` の `focus:outline-none focus:ring-1` を使う一部の入力欄は、グローバルな `:focus-visible` のオレンジ枠ではなく独自のリング色で表示されます(視認可能なフォーカス表示自体は維持されています)。
 - クライアントコンポーネント比率(29ページ中27ページが`"use client"`)を下げるサーバーコンポーネント化は、アーキテクチャ変更に相当するため見送りました。
 - `supabase/migrations/20260717_secure_function_search_path.sql`・`20260717_add_text_length_constraints.sql` は、4巡目の時点でも本番Supabaseへ**未適用**です。本番反映は運営者の判断で個別に実施してください(手順は各migrationファイル冒頭のコメントを参照)。
+
+## 13. 原動画の自動削除・孤立アップロード対策は「土台のみ」実装済み(2026-07-21・round 6)
+
+**動画は現状、削除の仕組みを有効化しない限り無期限にStorageへ残り続けます。** ロードマップの「動画は一時保存→解析→結果保存→一定期間後に原動画削除」という方針に沿った土台(判定ロジック・実行エンドポイント・運用手順)を今回追加しましたが、**本番での自動実行は有効化していません**。
+
+- 追加したもの: 保持期限切れ判定の純粋関数(`src/lib/video-analysis/retention.ts`)、孤立アップロード検出の純粋関数(`src/lib/video-analysis/orphanUploads.ts`)、両方を実行する `POST /api/cron/video-maintenance`(`CRON_SECRET`によるfail-closed認証、既定で`dryRun=true`)、`plan_limits.retention_days` 列(未適用migration `20260721_add_video_retention.sql`)。
+- **有効化していないもの**: 本番Supabaseへのmigration適用、`vercel.json` への自動cron登録、実データに対する`dryRun=false`実行。いずれも運営者が判断するまで何も削除されません。
+- 詳しい手順・安全確認方法は [`docs/video-retention-ops.md`](./video-retention-ops.md) を参照してください。

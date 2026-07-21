@@ -531,6 +531,7 @@ create table if not exists public.video_analyses (
   progress integer not null default 0,
   is_demo boolean not null default true,
   error_message text,
+  original_video_deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -578,6 +579,13 @@ create policy "Users can delete their own video analyses"
 
 create index if not exists video_analyses_user_id_created_at_idx
   on public.video_analyses (user_id, created_at desc);
+
+-- Supports the video-maintenance job's "original video old enough to
+-- purge and not yet purged" lookup (see
+-- src/lib/video-analysis/retention.ts).
+create index if not exists video_analyses_purge_lookup_idx
+  on public.video_analyses (status, original_video_deleted_at, created_at)
+  where original_video_deleted_at is null;
 
 -- ------------------------------------------------------------------
 -- Hardening #1: status can only move through the legal state graph,
@@ -1025,6 +1033,13 @@ create trigger profiles_protect_plan_columns
 create table if not exists public.plan_limits (
   plan_type text primary key,
   monthly_analysis_limit integer,
+  -- Days after upload the ORIGINAL video file may be kept before the
+  -- video-maintenance job deletes it from Storage. NULL = kept
+  -- indefinitely (see src/lib/video-analysis/retention.ts). The
+  -- video_analyses row itself (metadata, quality metrics, detection
+  -- events, coaching results) is never deleted by this — only the
+  -- large original file.
+  retention_days integer,
   label text not null default '',
   updated_at timestamptz not null default now()
 );
@@ -1035,11 +1050,17 @@ alter table public.plan_limits
   add constraint plan_limits_limit_check
   check (monthly_analysis_limit is null or monthly_analysis_limit >= 0);
 
-insert into public.plan_limits (plan_type, monthly_analysis_limit, label)
+alter table public.plan_limits
+  drop constraint if exists plan_limits_retention_days_check;
+alter table public.plan_limits
+  add constraint plan_limits_retention_days_check
+  check (retention_days is null or retention_days >= 1);
+
+insert into public.plan_limits (plan_type, monthly_analysis_limit, retention_days, label)
 values
-  ('free', 5, '無料プラン'),
-  ('pro', 50, '有料プラン(準備中)'),
-  ('admin', null, '管理者・開発者(無制限)')
+  ('free', 5, 30, '無料プラン'),
+  ('pro', 50, 90, '有料プラン(準備中)'),
+  ('admin', null, null, '管理者・開発者(無制限)')
 on conflict (plan_type) do nothing;
 
 alter table public.plan_limits enable row level security;

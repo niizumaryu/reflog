@@ -56,3 +56,52 @@ export async function removeAllUnderPrefix(
 
   return errors;
 }
+
+// Read-only counterpart of removeAllUnderPrefix: recursively lists every
+// file under a prefix (used by the orphan-upload detector, which needs
+// to compare Storage's contents against video_analyses rather than
+// delete anything itself). Supabase Storage's list() returns each file
+// entry's updated_at, which orphan detection needs to apply a minimum-age
+// grace period — see src/lib/video-analysis/orphanUploads.ts.
+export type StorageListFileEntry = {
+  name: string;
+  id: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
+export type StorageListerLike = {
+  list: (
+    path: string,
+    options?: { limit?: number },
+  ) => Promise<{ data: StorageListFileEntry[] | null; error: { message: string } | null }>;
+};
+
+export type ListedStorageFile = { path: string; updatedAt: string | null };
+
+// Best-effort: a list() failure at any level is silently skipped rather
+// than thrown, so one unreadable folder doesn't abort scanning the rest
+// of the bucket. The caller (a maintenance job that only ever reads from
+// this before deciding what to delete) treats an incomplete listing as
+// "found fewer orphans this run" rather than a hard failure.
+export async function listAllFilePaths(
+  bucket: StorageListerLike,
+  prefix: string,
+): Promise<ListedStorageFile[]> {
+  const { data: entries, error } = await bucket.list(prefix, { limit: 1000 });
+  if (error || !entries) return [];
+
+  const results: ListedStorageFile[] = [];
+  for (const entry of entries) {
+    // At the bucket root, prefix === "" — avoid producing a leading-slash
+    // path like "/user-1" there, since Supabase Storage paths never start
+    // with '/' and such a path would never match a real storage_path.
+    const entryPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.id === null) {
+      results.push(...(await listAllFilePaths(bucket, entryPath)));
+    } else {
+      results.push({ path: entryPath, updatedAt: entry.updated_at ?? entry.created_at ?? null });
+    }
+  }
+  return results;
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { removeAllUnderPrefix, type StorageBucketLike } from "@/lib/supabase/storageCleanup";
+import {
+  listAllFilePaths,
+  removeAllUnderPrefix,
+  type StorageBucketLike,
+  type StorageListerLike,
+} from "@/lib/supabase/storageCleanup";
 
 function makeBucket(
   filesByFolder: Record<string, { name: string; id: string | null }[]>,
@@ -78,5 +83,48 @@ describe("removeAllUnderPrefix", () => {
     const errors = await removeAllUnderPrefix(bucket, "user-1");
     expect(errors.length).toBe(1);
     expect(errors[0]).toContain("permission denied");
+  });
+});
+
+function makeLister(
+  filesByFolder: Record<string, { name: string; id: string | null; updated_at?: string }[]>,
+  opts: { listError?: string; failFolder?: string } = {},
+): StorageListerLike {
+  return {
+    list: vi.fn(async (path: string) => {
+      if (opts.listError && path === opts.failFolder) {
+        return { data: null, error: { message: opts.listError } };
+      }
+      return { data: filesByFolder[path] ?? [], error: null };
+    }),
+  };
+}
+
+describe("listAllFilePaths", () => {
+  it("returns an empty list for an empty bucket root", async () => {
+    const bucket = makeLister({ "": [] });
+    expect(await listAllFilePaths(bucket, "")).toEqual([]);
+  });
+
+  it("recurses through user/analysisId folders and returns full file paths with timestamps", async () => {
+    const bucket = makeLister({
+      "": [{ name: "user-1", id: null }],
+      "user-1": [{ name: "analysis-1", id: null }],
+      "user-1/analysis-1": [
+        { name: "original.mp4", id: "file-1", updated_at: "2026-07-01T00:00:00Z" },
+      ],
+    });
+    const files = await listAllFilePaths(bucket, "");
+    expect(files).toEqual([
+      { path: "user-1/analysis-1/original.mp4", updatedAt: "2026-07-01T00:00:00Z" },
+    ]);
+  });
+
+  it("skips (does not throw on) a folder that fails to list", async () => {
+    const bucket = makeLister(
+      { "": [{ name: "user-1", id: null }] },
+      { listError: "network error", failFolder: "user-1" },
+    );
+    expect(await listAllFilePaths(bucket, "")).toEqual([]);
   });
 });
