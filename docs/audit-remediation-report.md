@@ -216,3 +216,60 @@
 ## テスト
 
 新規テストファイル: `src/lib/date.test.ts`・`src/lib/coach/todayAdvice.test.ts`・`src/lib/schedules.test.ts`・`src/lib/matches.test.ts`・`src/lib/sessionError.test.ts`。既存テストファイルへの追加: `src/lib/safeRedirect.test.ts`(制御文字バイパスの回帰テスト4件)・`src/app/api/cron/notifications/route.test.ts`(定時間比較の回帰テスト2件)・`src/app/api/account/delete/route.test.ts`(Storage削除失敗時にdeleteUserが呼ばれないことを検証する2件 — 3巡目まで無テストだった安全上の不変条件)。最終的なテスト総数・実行結果は最終報告(会話内)を参照してください。
+
+---
+
+# 5巡目監査(2026-07-18実施、世界公開前RC-1最終審査)
+
+4巡目までの内容を「最大60点の途中結果」として引き継ぎ、コード変更前に独立した6領域(セキュリティ/データ整合性・信頼性/アクセシビリティ・多ペルソナUX/パフォーマンス・運用/保守性・テスト品質/プロダクト・収益・ストア適合性)を並行監査してから着手した。既存監査の記述を鵜呑みにせず、対応済みとされた項目もすべて現在のコードを直接読んで再検証した。
+
+## P1(公開前修正)
+
+### プッシュ購読の`endpoint`が未検証で、サーバー発リクエストの対象になり得た(SSRF)
+
+- **問題**: `src/lib/notifications/settings.ts`の`savePushSubscription`は、クライアントの`PushSubscription.toJSON()`から得た`endpoint`をURL形式の検証なしにそのまま`push_subscriptions`テーブルへ保存していた。RLSの挿入ポリシーは`auth.uid() = user_id`のみを検証しており、`endpoint`の形式・ホスト名を制限するDB制約もなかった。認証済みユーザーがブラウザのPushManagerを経由せずSupabase REST APIを自分のJWTで直接呼び出せば、`endpoint`に任意のURL(例: 内部ネットワークのホスト)を保存できる状態だった。この値は`src/app/api/cron/notifications/route.ts`(毎時実行・service-role・全ユーザー対象)と`src/app/api/notifications/test/route.ts`(ユーザー自身がボタンで呼び出し可能)の両方で、検証なしに`webpush.sendNotification({endpoint, ...})`へそのまま渡され、アプリ自身のVAPID鍵で署名されたサーバー発リクエストとして送信されていた。
+- **対応状況**: 対応済み。`src/lib/notifications/pushEndpoint.ts`(新規)に`isValidPushEndpoint()`を実装し、`https:`スキームであること・ローカル/プライベートアドレス(localhost・127.\*・10.\*・172.16-31.\*・192.168.\*・169.254.\*・::1)宛てでないことを検証。書き込み時(`savePushSubscription`)と送信時(cronルート・テスト通知ルートの両方、送信直前)の二重で検証し、不正な行は送信をスキップした上で削除するようにした。単体テスト`src/lib/notifications/pushEndpoint.test.ts`(6ケース)を追加。
+
+## P1(アクセシビリティ回帰 — 前回監査の主張が現状のコードと一致していなかった)
+
+### 通知設定画面の非同期結果メッセージに`aria-live`がなかった
+
+- **問題**: 3巡目監査は「エラー・状態表示にaria-liveを追加した」と記録していたが、`src/components/notifications/NotificationToggle.tsx`のテスト通知結果・エラー表示、および`src/components/notifications/NotificationSettingsForm.tsx`のエラー表示には`role`/`aria-live`が付いていなかった(スクリーンリーダー利用者に成功/失敗が伝わらない、WCAG 4.1.3)。
+- **対応状況**: 対応済み。成功メッセージに`role="status" aria-live="polite"`、エラーメッセージに`role="alert" aria-live="assertive"`を追加(アプリ内の既存パターンに統一)。
+
+### 予定の新規作成・編集画面に戻る手段がなかった
+
+- **問題**: `src/app/schedule/new/page.tsx`と`src/app/schedule/[id]/edit/page.tsx`の入力画面(読み込み完了後の通常状態)にはヘッダー・戻るリンクが一切なく、同ファイル内のローディング/エラー/見つからない状態では「一覧に戻る」リンクがあるにもかかわらず、メインの入力画面だけ抜けていた。インストール済みPWA(ブラウザChromeなし)では、この2画面から戻る手段が実質的になかった。
+- **対応状況**: 対応済み。両画面の見出し上に「一覧に戻る」/「戻る」リンク(44px高さ、既存の他画面と同系統のスタイル)を追加。
+
+## 運用可視性(P1として対応)
+
+### 通知cronが部分失敗時も常に200を返し、障害が誰にも見えなかった
+
+- **問題**: `src/app/api/cron/notifications/route.ts`は、`notification_log`書き込み失敗やプッシュ送信失敗(`result.errors`)が発生していても、常に`{success:true}`とHTTP 200を返していた。リポジトリ全体にSentry等のエラートラッキングが一切導入されておらず(grep済み、0件)、この振る舞いだとプッシュ配信の障害が完全に無音になり、Vercel Cronの失敗検知(非2xxベース)も運用者への通知ログも機能しなかった。
+- **対応状況**: 対応済み。`result.errors`が1件以上ある場合は`console.error`でログを残した上でHTTP 500(`success:false`)を返すよう変更。既存の成功系テスト(空データセット、エラー0件)は500への変更の影響を受けないことを確認済み。
+
+## 監査したが問題が見つからなかった主な領域(5巡目)
+
+- オープンリダイレクト・CRON_SECRET fail-closed・タイミングセーフ比較・RLS全テーブル・service-role鍵の非露出・アカウント削除時のStorage削除順序・JST日付境界・`updateSchedule`の競合検知・safeQueryLimits・エラーバウンダリ・LoadErrorBanner・contrast(text-zinc-500/600の残存なし)・44pxタップ領域(実インタラクティブ要素)・フォームのhtmlFor/aria結線・アカウント削除ダイアログのフォーカストラップ・チャートのdynamic import・動画アップロードの進捗/キャンセル/ObjectURL解放・TODO/FIXME/console.log/any の残存なし: いずれも現在のコードを直接読んで再検証し、記録通りであることを確認した。
+- `video_analyses.match_id`の所有権チェック漏れ(P2、他の子テーブルにあるenforce_video_analysis_ownershipトリガーがこの列にはない)を新規発見したが、現状これを悪用する読み取り経路はコード上存在せず影響は限定的なため、一覧化のみで見送り。
+
+## P2/P3(今回は一覧化のみ、修正なし)
+
+| 問題 | 該当ファイル | 種別 |
+| --- | --- | --- |
+| `video_analyses.match_id`に他テーブルと同等の所有権検証トリガーがない(現状悪用経路なし) | `supabase/schema.sql` | P2 |
+| cronの`no_record_reminder`が`maybeSingle()`の多重行エラーを握りつぶし、同日に複数試合を記録した場合に誤ったリマインドが送られ得る | `src/app/api/cron/notifications/route.ts` | P2 |
+| Service Workerが非2xxレスポンスもキャッシュしてしまう | `public/sw.js` | P2 |
+| ネイティブ`alert()`/`confirm()`が6箇所以上残存(アカウント削除のみカスタムダイアログ化済み) | `schedule/new`, `schedule/[id]/edit`, `matches/[id]`, `matches/[id]/edit`, `page.tsx`, `video-analysis/[id]` | P2 |
+| 通知許可の初回リクエストに事前説明がなく、拒否後は二度と促されない | `NotificationPermissionPrompt.tsx` | P2 |
+| ホーム画面の予定・年間目標・未読件数の取得失敗が`console.error`のみでUI表示に出ない(同ページの試合データ取得は`LoadErrorBanner`で表示される一貫性の欠如) | `src/app/page.tsx` | P3 |
+| `updateMatch`の競合時、日本語の案内でなく生のPostgrestエラーメッセージが表示される | `src/app/matches/[id]/edit/page.tsx` | P3 |
+| 日付フォーマット・月キー生成・ミリ秒/日の重複実装が数箇所に残る | `matches.ts`/`schedules.ts`/`coach/period.ts`/`coach/keywordTrend.ts`/`schedulePreview.ts`/各種`formatDate`ローカル実装 | P3 |
+| `src/app/report/page.tsx`が863行と最大で、プレゼンテーション・データ取得・ビジネスロジックが混在 | `src/app/report/page.tsx` | P3 |
+| 認証ガード(「ログインが必要です」)16箇所・quota超過を返す`videoAnalyses.ts`にテストがない | `src/lib/*.ts` | P2 |
+| バックアップ/RPO/RTOの方針がドキュメント化されていない | `docs/supabase-production-verification.md` | P3(文書) |
+
+## テスト
+
+新規テストファイル: `src/lib/notifications/pushEndpoint.test.ts`(6ケース)。既存119件(20ファイル)と合わせて計125件(21ファイル)、全て成功。`npm run lint`・`npx tsc --noEmit`・`npm run build`・`git diff --check`すべて成功を確認済み。

@@ -187,12 +187,20 @@ export function NotificationToggle() {
       )}
 
       {testResult && (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400">
+        <p
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400"
+        >
           {testResult}
         </p>
       )}
       {error && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
           {error}
         </p>
       )}

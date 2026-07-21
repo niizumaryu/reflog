@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { DEFAULT_MATCH_DAY_TIME, DEFAULT_NOTIFY_TIME } from "@/lib/notifications/config";
+import { isValidPushEndpoint } from "@/lib/notifications/pushEndpoint";
 import type { Database } from "@/lib/supabase/types";
 
 const PROMPTED_STORAGE_KEY = "reflog_notification_prompted";
@@ -97,6 +98,9 @@ export async function savePushSubscription(
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
     throw new Error("購読情報の取得に失敗しました");
+  }
+  if (!isValidPushEndpoint(json.endpoint)) {
+    throw new Error("購読情報の形式が不正です");
   }
 
   const { error } = await supabase.from("push_subscriptions").upsert(

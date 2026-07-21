@@ -12,6 +12,7 @@ import {
   type NotificationType,
 } from "@/lib/notifications/config";
 import { checkRateLimit, clientIdentifier } from "@/lib/rateLimit";
+import { isValidPushEndpoint } from "@/lib/notifications/pushEndpoint";
 
 // Triggered hourly (see vercel.json) to send the four schedule/cron-driven
 // reminder types described in NOTIFICATION_CONTENT (ai_advice is triggered
@@ -184,6 +185,17 @@ async function notifyUser(
   const payload = JSON.stringify({ title: content.title, body: content.body, url: "/" });
 
   for (const sub of subscriptions) {
+    if (!isValidPushEndpoint(sub.endpoint)) {
+      // A row that didn't come from a real browser PushManager (e.g.
+      // inserted via a direct Supabase REST call, bypassing
+      // savePushSubscription's own validation) — drop it rather than
+      // handing it to webpush.sendNotification, which would otherwise make
+      // an outbound request to an attacker-controlled host using our VAPID
+      // identity.
+      await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+      result.skipped++;
+      continue;
+    }
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
@@ -344,6 +356,21 @@ async function handle(request: NextRequest) {
         await notifyUser(admin, profile.id, "monthly_reflection", today, today, result, pushEnabled);
       }
     }
+  }
+
+  // A non-empty `result.errors` means at least one notification-log write or
+  // push send failed outright (not the expected/benign 404-410 "subscription
+  // gone" case, which is handled above and never added to errors). Nothing
+  // else in this app reports on this route's health, so returning 200
+  // unconditionally would make a real delivery outage invisible to both
+  // Vercel's cron-failure detection (which keys off non-2xx) and anyone
+  // reading function logs. Surface both.
+  if (result.errors.length > 0) {
+    console.error("[cron/notifications] completed with errors:", result.errors);
+    return NextResponse.json(
+      { success: false, date: today, hour, result },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ success: true, date: today, hour, result });

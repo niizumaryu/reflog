@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { isValidPushEndpoint } from "@/lib/notifications/pushEndpoint";
 import { createClient } from "@/lib/supabase/server";
 
 // Sends a one-off push to every device the logged-in user has subscribed,
@@ -67,6 +68,13 @@ export async function POST() {
   let sent = 0;
   const errors: string[] = [];
   for (const sub of subscriptions) {
+    if (!isValidPushEndpoint(sub.endpoint)) {
+      // Same guard as the cron route: don't let a subscription row that
+      // didn't come from a real browser PushManager be used as a
+      // server-side request target.
+      await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+      continue;
+    }
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },

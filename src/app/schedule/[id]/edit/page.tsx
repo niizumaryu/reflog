@@ -152,6 +152,12 @@ export default function EditSchedulePage() {
   return (
     <main className="min-h-dvh bg-[#081824] p-6 text-white">
       <div className="mx-auto max-w-md">
+        <Link
+          href={`/schedule/${id}`}
+          className="mb-4 inline-flex h-11 items-center gap-1 text-sm font-semibold text-cyan-400"
+        >
+          ← 戻る
+        </Link>
         <h1 className="mb-6 text-3xl font-black text-cyan-400">
           📅 予定を編集
         </h1>
