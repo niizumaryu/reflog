@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateAiCoachComment, type AiCoachComment } from "@/lib/aiCoach";
 import { generateAIReflection } from "@/lib/aiReflection";
 import { generateMatchFeedback } from "@/lib/coach";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { RatingInput } from "@/components/matches/RatingInput";
 import {
   deleteMatch,
@@ -74,6 +75,8 @@ export default function MatchDetailPage() {
   const [reflection, setReflection] = useState<string[] | null>(null);
   const [isReflecting, setIsReflecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [coachComment, setCoachComment] = useState<AiCoachComment | null>(
     null,
   );
@@ -112,20 +115,18 @@ export default function MatchDetailPage() {
 
   const handleDelete = async () => {
     if (!match || isDeleting) return;
-    const confirmed = window.confirm(
-      "この記録を削除しますか？この操作は取り消せません。",
-    );
-    if (!confirmed) return;
+    setDeleteError(null);
     setIsDeleting(true);
     try {
       await deleteMatch(match.id);
     } catch (error) {
-      window.alert(
+      setDeleteError(
         error instanceof Error
           ? error.message
           : "削除に失敗しました。もう一度お試しください。",
       );
       setIsDeleting(false);
+      setIsConfirmOpen(false);
       return;
     }
     router.push("/matches");
@@ -470,9 +471,18 @@ export default function MatchDetailPage() {
         >
           編集する
         </Link>
+        {deleteError && (
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            {deleteError}
+          </p>
+        )}
         <button
           type="button"
-          onClick={handleDelete}
+          onClick={() => setIsConfirmOpen(true)}
           disabled={isDeleting}
           className="h-12 w-full rounded-xl border border-red-500/40 bg-red-500/10 text-sm font-semibold tracking-wide text-red-400 transition active:scale-[0.98] active:bg-red-500/20 disabled:opacity-60"
         >
@@ -485,6 +495,18 @@ export default function MatchDetailPage() {
           試合一覧へ戻る
         </Link>
       </div>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="この記録を削除しますか？"
+        targetName={match.competition || undefined}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

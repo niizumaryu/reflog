@@ -106,3 +106,32 @@ REFLOGはPWA(Webアプリ)として実装されており、Next.jsの `manifest.
 - 追加したもの: 保持期限切れ判定の純粋関数(`src/lib/video-analysis/retention.ts`)、孤立アップロード検出の純粋関数(`src/lib/video-analysis/orphanUploads.ts`)、両方を実行する `POST /api/cron/video-maintenance`(`CRON_SECRET`によるfail-closed認証、既定で`dryRun=true`)、`plan_limits.retention_days` 列(未適用migration `20260721_add_video_retention.sql`)。
 - **有効化していないもの**: 本番Supabaseへのmigration適用、`vercel.json` への自動cron登録、実データに対する`dryRun=false`実行。いずれも運営者が判断するまで何も削除されません。
 - 詳しい手順・安全確認方法は [`docs/video-retention-ops.md`](./video-retention-ops.md) を参照してください。
+
+## 14. Round 7(2026-07-21実施)で対応した項目・今後の課題
+
+詳細は [`docs/audit-remediation-report.md`](./audit-remediation-report.md) の「Round 7」
+セクションを参照してください。ネイティブ `alert`/`confirm` の全廃(共通 `ConfirmDialog`
+への置き換え)、Playwright E2Eテストの追加、ホーム画面の「今後の担当試合」取得失敗時に
+空状態と誤認させていた表示の修正、`queueToast` がホーム画面以外へ遷移した場合に表示され
+なかったバグの修正(ルートレイアウトでのグローバル表示化)、お問い合わせ導線の追加、
+エラー監視・課金アーキテクチャ・動画保持運用のドキュメント整備を行いました。
+
+今回も対応を見送った項目(将来対応):
+
+- **アプリ内でのメールアドレス変更・パスワード変更は未実装**です(パスワードの「忘れた
+  場合」の再設定フロー `/reset-password`・`/update-password` はround 3以前から存在しま
+  すが、ログイン中のユーザーが設定画面からメール・パスワードを変更する導線はありませ
+  ん)。実装する場合は再認証要件(直近のログインからの経過時間チェック等)を含めて設計
+  してから着手することを推奨します。
+- **データエクスポートは試合記録(CSV)のみ**です。スケジュール・動画解析メタデータ・
+  通知設定・年間目標など、他のユーザーデータを含む全データエクスポート(例: JSON一括
+  ダウンロード)は未実装です。
+- Playwrightの認証必須テスト(`tests/e2e/authed/**`)は、本セッションでは実際のテスト用
+  Supabaseプロジェクトが用意できなかったため**実行確認できていません**。認証不要のテス
+  ト(`tests/e2e/public/**`、4ビューポート×13ケース)は実行・全件成功を確認済みです。
+  詳細は [`tests/e2e/README.md`](../tests/e2e/README.md)。
+- 外部エラートラッキング(Sentry等)は引き続き未導入です。導入用の差し替えポイント
+  (`src/lib/observability/errorReporter.ts`)と手順は
+  [`docs/observability.md`](./observability.md) に用意しました。
+- Stripe/PayPay等の決済は引き続き未接続です。接続前に確定すべき設計判断を
+  [`docs/billing-architecture.md`](./billing-architecture.md) に整理しました。

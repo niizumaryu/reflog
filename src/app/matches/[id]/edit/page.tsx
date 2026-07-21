@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { queueToast } from "@/components/Toast";
 import { MatchForm } from "@/components/matches/MatchForm";
 import {
@@ -27,6 +28,7 @@ export default function EditMatchPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -70,16 +72,14 @@ export default function EditMatchPage() {
 
   const handleDelete = async () => {
     if (!id) return;
-    const confirmed = window.confirm(
-      "この記録を削除しますか？この操作は取り消せません。",
-    );
-    if (!confirmed) return;
+    setError(null);
     setIsDeleting(true);
     try {
       await deleteMatch(id);
       router.push("/matches");
     } catch (deleteError) {
       setIsDeleting(false);
+      setIsConfirmOpen(false);
       setError(
         deleteError instanceof Error
           ? deleteError.message
@@ -163,8 +163,20 @@ export default function EditMatchPage() {
           label: "削除する",
           loadingLabel: "削除中...",
           isLoading: isDeleting,
-          onClick: handleDelete,
+          onClick: () => setIsConfirmOpen(true),
         }}
+      />
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="この記録を削除しますか？"
+        targetName={match.competition || undefined}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmOpen(false)}
       />
     </div>
   );

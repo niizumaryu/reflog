@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { queueToast } from "@/components/Toast";
 import {
   SCHEDULE_NOT_FOUND_MESSAGE,
   deleteSchedule,
@@ -33,6 +35,7 @@ export default function EditSchedulePage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>("loading");
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export default function EditSchedulePage() {
     setIsSaving(true);
     try {
       await updateSchedule(id, { title, date, time, place, memo });
-      alert("予定を更新しました！");
+      queueToast("予定を更新しました");
       router.push(`/schedule/${id}`);
     } catch (error) {
       console.error(error);
@@ -97,11 +100,6 @@ export default function EditSchedulePage() {
 
   const handleDelete = async () => {
     if (!id) return;
-    const confirmed = window.confirm(
-      "この予定を削除しますか？この操作は取り消せません。",
-    );
-    if (!confirmed) return;
-
     setFormError(null);
     setIsDeleting(true);
     try {
@@ -111,6 +109,7 @@ export default function EditSchedulePage() {
       console.error(error);
       setFormError("削除に失敗しました。もう一度お試しください。");
       setIsDeleting(false);
+      setIsConfirmOpen(false);
     }
   };
 
@@ -273,7 +272,7 @@ export default function EditSchedulePage() {
           </button>
 
           <button
-            onClick={handleDelete}
+            onClick={() => setIsConfirmOpen(true)}
             disabled={busy}
             className="w-full rounded-xl border border-red-500/40 bg-red-500/10 py-4 text-lg font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
           >
@@ -281,6 +280,18 @@ export default function EditSchedulePage() {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="この予定を削除しますか？"
+        targetName={title || undefined}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </main>
   );
 }

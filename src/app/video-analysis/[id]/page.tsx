@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CoachingSummaryCard } from "@/components/video-analysis/CoachingSummaryCard";
 import { DemoDisclaimerBanner } from "@/components/video-analysis/DemoDisclaimerBanner";
 import { EvidenceCard } from "@/components/video-analysis/EvidenceCard";
@@ -39,6 +40,7 @@ export default function VideoAnalysisResultPage() {
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -92,9 +94,6 @@ export default function VideoAnalysisResultPage() {
 
   const handleDelete = async () => {
     if (!analysis) return;
-    const confirmed = window.confirm("この解析を削除しますか？動画データも完全に削除され、元に戻せません。");
-    if (!confirmed) return;
-
     setDeleteError(null);
     setIsDeleting(true);
     try {
@@ -106,6 +105,7 @@ export default function VideoAnalysisResultPage() {
         error instanceof Error ? error.message : "削除に失敗しました。もう一度お試しください。",
       );
       setIsDeleting(false);
+      setIsConfirmOpen(false);
     }
   };
 
@@ -226,13 +226,25 @@ export default function VideoAnalysisResultPage() {
 
         <button
           type="button"
-          onClick={handleDelete}
+          onClick={() => setIsConfirmOpen(true)}
           disabled={isDeleting}
           className="h-12 w-full rounded-xl border border-red-500/40 bg-red-500/10 text-sm font-semibold text-red-400 transition active:scale-[0.98] disabled:opacity-50"
         >
           {isDeleting ? "削除中..." : "この解析を削除する"}
         </button>
       </main>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="この解析を削除しますか？"
+        targetName={analysis.title || undefined}
+        description="動画データも完全に削除され、元に戻せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

@@ -314,3 +314,67 @@
 ## テスト
 
 新規テストファイル: `src/lib/video-analysis/retention.test.ts`(9ケース)・`src/lib/video-analysis/orphanUploads.test.ts`(5ケース)・`src/lib/video-analysis/videoMaintenance.test.ts`(11ケース)・`src/app/api/cron/video-maintenance/route.test.ts`(5ケース)。既存の`src/lib/supabase/storageCleanup.test.ts`に3ケース追加。既存160件(25ファイル)全て成功。`npm run lint`・`npx tsc --noEmit`・`npm run build`すべて成功を確認済み(詳細は本ラウンドの最終報告を参照)。
+
+---
+
+# Round 7(2026-07-21実施、RC-1向けP0是正)
+
+Round 6までの内容を「最大60点の途中結果」として引き継いだ。今回はREFLOGを「限定ユーザーへ安心して提供できるRelease Candidate 1」に引き上げることを目的とし、新機能追加は一切行わず、指示されたP0項目を優先順位どおり実施した。
+
+## P0-1: ネイティブ `alert`/`confirm` の全廃
+
+- **問題**: Round 5・6で発見済みだったが未対応のまま残っていた `window.alert`/`window.confirm` が6ファイル・10箇所に残存していた(`src/app/page.tsx`・`src/app/matches/[id]/page.tsx`・`src/app/matches/[id]/edit/page.tsx`・`src/app/schedule/[id]/page.tsx`・`src/app/schedule/new/page.tsx`・`src/app/schedule/[id]/edit/page.tsx`・`src/app/video-analysis/[id]/page.tsx`)。ネイティブダイアログはスタイルを統一できず、フォーカストラップ・aria属性・モバイルでのレイアウト崩れ防止がブラウザ任せになる。
+- **対応**: `src/components/ConfirmDialog.tsx`(新規)を、既存の `src/app/settings/page.tsx` にあったアカウント削除確認モーダルの実装(role="dialog"・aria-modal・フォーカストラップ・Escapeクローズ・クローズ時のフォーカス復帰)を汎用化する形で作成。destructive操作は赤系ボタン、削除対象名(`targetName`)を表示できる設計にした。`settings/page.tsx` 自身もこの共通コンポーネントを使うようリファクタし、重複実装を解消。6ファイルすべての `window.confirm`/`window.alert` をこのダイアログ、または既存の `queueToast`(成功時のトースト表示)に置き換えた。
+- **副次的に発見・修正したバグ**: `queueToast()` はsessionStorageにメッセージを積むだけで、**ホーム画面(`src/app/page.tsx`)でしか表示されていなかった**。そのため `matches/[id]/edit` や `schedule/new` 等、ホーム以外の画面へ遷移する保存・更新操作の成功トーストは、ユーザーがたまたま後でホームへ戻るまで表示されないか、無関係なタイミングで突然表示される不具合があった。`src/components/Toast.tsx` に `GlobalToast`(`useQueuedToast`を内包)を追加し、`src/app/layout.tsx`(ルートレイアウト)に配置することで、どの画面に遷移してもキューされたトーストが即座に表示されるよう修正した。ホーム画面の個別マウントは削除。
+- **検証**: `grep`で `alert(`/`confirm(`/`window.alert`/`window.confirm` の残存が0件であることを確認。Playwright E2Eで実際にダイアログの表示・Escapeクローズ・削除実行・トースト表示を検証(下記)。
+
+## P0-2: Playwright E2Eテストの追加
+
+- **背景**: Round 2の監査では「認証を伴うE2Eにはテスト専用Supabaseプロジェクトが必要」として見送られたまま、Round 6まで未着手だった。
+- **対応**: `@playwright/test` を新規に開発依存として追加(`npm install -D @playwright/test`、chromiumのみインストール)。`playwright.config.ts` で以下を実装:
+  - 認証不要の `public-*` プロジェクト(4ビューポート: 360×800 / 390×844 / 768×1024 / 1440×900)。常に実行される。
+  - 認証必須の `authed-*` プロジェクトは、環境変数 `E2E_TEST_USER_EMAIL`/`E2E_TEST_USER_PASSWORD` が**両方設定されている場合のみ登録**される設計。本番コードには一切テスト用の認証バイパスを追加していない(`src/proxy.ts` の `supabase.auth.getUser()` によるサーバー側検証はそのまま)。認証は実際のUIからログインし、Playwrightの`storageState`に保存して再利用する標準パターン(`tests/e2e/auth.setup.ts`)。
+  - Next.js 16は同一プロジェクトディレクトリで `next dev` の多重起動をロックファイルで拒否する仕様(訓練データにない挙動、`AGENTS.md`の警告どおり)であることが実行時に判明したため、既存の開発サーバー(ポート3000)を`reuseExistingServer: true`で再利用する設定に変更した。
+- **実装したテスト**:
+  - `tests/e2e/public/protected-routes.spec.ts`: 未認証で `/`・`/matches`・`/schedule`・`/video-analysis`・`/settings`・`/notifications` にアクセスすると `/login` へリダイレクトされること。未知のURLも同様(クラッシュせず`/login`へ)。
+  - `tests/e2e/public/login.spec.ts`: ログイン画面表示・不正ログイン時のエラー表示・新規登録切り替え・レスポンシブ(横スクロールなし・送信ボタン44px以上)。
+  - `tests/e2e/public/not-found.spec.ts`: 未認証時の未知URLアクセス、利用規約・プライバシーポリシーの表示。
+  - `tests/e2e/authed/home.spec.ts`・`quick-entry.spec.ts`・`schedule.spec.ts`・`notifications.spec.ts`・`video-analysis.spec.ts`・`not-found.spec.ts`: ホーム画面表示、クイック記録の作成→詳細表示→ConfirmDialogでの削除(二重送信防止ボタン文言変化を含む)、スケジュールの追加→詳細→編集→削除(Escapeで閉じてキャンセルされることも検証)、通知設定画面、動画分析画面のデモ免責表示、300MB超の動画ファイル選択時のエラー表示、非対応形式のエラー表示、認証済み状態での404ページ表示。
+- **実行結果**: `public-*` は4ビューポート×13ケース=52件、全件成功を確認済み。`authed-*` は**このセッションでは実行確認できていない**(テスト専用Supabaseプロジェクトが用意されていないため — 本番プロジェクトを使った実行は指示により実施していない)。詳細と有効化手順は `tests/e2e/README.md`。
+
+## P0-3: 保存・更新・削除・アップロード失敗時のUX統一
+
+- ConfirmDialog化の過程で、削除失敗時のエラー表示をすべて既存の `role="alert" aria-live="assertive"` パターンに統一した(以前は一部が `window.alert` で表示されていた)。
+- **新規発見・修正**: ホーム画面の「今後の担当試合」セクションは、Supabaseからの取得が失敗した場合も `schedules` が初期値の空配列のままとなり、「まだ予定が登録されていません。」という**空状態と同じ表示**になっていた(Round 3で他の同種箇所は修正済みだったが、この箇所は対象漏れだった)。専用の `schedulesLoadError` state を追加し、取得失敗時は「予定の取得に失敗しました。通信環境をご確認のうえ、ページを再読み込みしてください。」という専用メッセージを表示するよう修正。
+- 上記以外のエラーハンドリング(401セッション切れ・404・409相当の競合・413相当のサイズ超過・429レート制限・500・オフライン)は、Round 3〜6で整備済みの「日本語の統一メッセージ+再試行導線+セッション切れ時の別タブログイン導線」パターンが引き続き機能していることをコードレビューで再確認した(新規のステータスコード別の出し分けは追加していない — 既存の「原因を問わず再試行を促す」フォールバック設計を踏襲)。
+
+## P0-4: 動画デモ分析の誤認防止 再監査
+
+- `/video-analysis`(一覧)・`/video-analysis/new`(アップロード)・`/video-analysis/[id]/processing`(処理中)・`/video-analysis/[id]`(結果)・ホーム画面のティーザーカードのすべてで `DemoDisclaimerBanner` が表示されていることをコードから直接再確認した。
+- `CoachingSummaryCard`・`EvidenceCard` はいずれも `UncertaintyCard`(根拠・限界を明示するコンポーネント)を併設しており、AIが実際にプレーを認識したと断定する表現・判定精度を主張する表現は見つからなかった。Round 5・6の監査結果と一致。**今回のコード変更はなし(再検証のみ)**。
+
+## P0-5: アカウント削除・データ削除の設計監査
+
+- `src/app/api/account/delete/route.ts` と `docs/data-deletion.md` を照合し、Storageクリーンアップ→authユーザー削除の順序・失敗時のロールバック挙動(DBは削除しない)・レート制限・ログにPIIを出力しないことを再確認した(記述と実装が一致)。
+- **新規発見**: アプリ内でのメールアドレス変更・パスワード変更(ログイン中のユーザー向け)が実装されていないことを確認した。パスワードの「忘れた場合」の再設定フローのみ存在する。危険な中途半端実装を避け、`docs/known-limitations.md` に設計時の注意点(再認証要件)とともに記録した。
+- 設定画面に「お問い合わせ」の直接導線がなかった(プライバシーポリシー内にのみ連絡先メールがあった)ため、`src/lib/contact.ts`(新規、`CONTACT_EMAIL`の単一情報源)を作成し、`privacy`・`terms`ページの重複定義を統合したうえで、`src/app/settings/page.tsx` に直接の「お問い合わせ」行(mailto:リンク)を追加した。架空の会社名・住所・電話番号は追加していない。
+
+## P0-6: 本番migrationと動画保持機能の安全な適用手順
+
+- `docs/video-retention-ops.md` に以下を追記した: dry-runレスポンスの具体例(JSON)、SQLによる削除候補の直接検証方法、本実行前チェックリスト(6項目)、ロールバック不能である旨の明示的な警告、cronを停止する手順、障害時の対応手順、Storage使用量を定期確認する運用手順。
+- コードを再確認し、「削除件数上限」(purge対象は1回あたり最大500件、`videoMaintenanceDeps.ts`の`.limit(500)`)・「prefix境界での一括削除がなく1件ずつ特定済みの対象のみ削除される」設計・「GETでも同じCRON_SECRET認証を通らない限り削除されない」ことを確認し、文書に反映した(コード変更はなし、既存の安全設計を正確に文書化)。
+
+## P0-7: エラー監視・運用監視の導入可能な構造整備
+
+- `src/lib/observability/errorReporter.ts`(新規)を追加し、`src/app/error.tsx`・`src/app/global-error.tsx` の `console.error` 呼び出しをこの関数経由に統一した。Sentry等を導入する際はこの関数の中身を差し替えるだけで済む設計。
+- `docs/observability.md`(新規)に、Sentry導入手順・送信してはいけないデータ(動画URL・認証トークン・自由記述欄の本文・個人情報)・DSN未設定時にアプリが壊れないための設計要件・開発環境での送信抑制・source mapの扱い、および運用指標10項目それぞれの現在の取得元を整理した。
+- `.env.local.example` に `NEXT_PUBLIC_SENTRY_DSN`(未使用・将来用のプレースホルダとして明記)を追記した。
+
+## P1/P2(文書化のみ、実装は見送り)
+
+- `docs/billing-architecture.md`(新規)を作成。`supabase/schema.sql` を直接読み、`plan_type`は`protect_profile_plan_columns`トリガーにより`service_role`/`postgres`以外からの変更が拒否されること、`plan_limits`はSELECTのみのRLSで単一の情報源として保護されていること、`admin`プランが`monthly_analysis_limit`/`retention_days`とも`null`(無制限)であることを実際のスキーマ定義から確認・記録した。決済失敗時の状態・解約後の扱い・プラン降格時の動画保持・webhookの冪等性・二重課金防止は未設計であることを明記し、実装順序を提案した。
+- 本物のAI動画分析・FIBAルールQA・App Store対応については、依存境界と前提条件のみを同文書に記録し、実装は行っていない。
+
+## テスト
+
+新規テストファイルの追加はなし(今回はUIコンポーネントの置き換え・E2Eインフラ整備・ドキュメント整備が中心で、既存の単体テスト対象範囲に実質的な変更はなかったため)。既存160件(25ファイル)は全て成功を維持。`npm run lint`・`npx tsc --noEmit`・`npm run build`・Playwright `public-*`(52件)の実行結果は最終報告(会話内)を参照。

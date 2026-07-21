@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export const metadata = {
   title: "プライバシーポリシー | REFLOG",
@@ -6,7 +7,6 @@ export const metadata = {
 };
 
 const EFFECTIVE_DATE = "2026年7月17日";
-const CONTACT_EMAIL = "niizuma6090@gmail.com";
 
 function Section({
   title,

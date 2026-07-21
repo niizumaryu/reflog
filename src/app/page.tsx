@@ -18,8 +18,8 @@ import {
   generateTodayAdvice,
 } from "@/lib/coach";
 import { jstDateString } from "@/lib/date";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LoadErrorBanner } from "@/components/LoadErrorBanner";
-import { Toast, useQueuedToast } from "@/components/Toast";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { formatMatchDate, getMatches, sortByNewest, type MatchRecord } from "@/lib/matches";
 import {
@@ -64,13 +64,16 @@ type ScheduleItem = {
 };
 
 export default function Home() {
-  const toastMessage = useQueuedToast();
   const [matches, setMatches] = useState<MatchRecord[] | null>(null);
   const [matchesLoadError, setMatchesLoadError] = useState<string | null>(null);
   const router = useRouter();
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [schedulesLoadError, setSchedulesLoadError] = useState<string | null>(null);
   const [annualGoal, setAnnualGoal] = useState(DEFAULT_ANNUAL_GOAL);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [scheduleDeleteTarget, setScheduleDeleteTarget] = useState<ScheduleItem | null>(null);
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
+  const [scheduleDeleteError, setScheduleDeleteError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -103,9 +106,11 @@ export default function Home() {
 
       if (error) {
         console.error("Failed to load schedules:", error);
+        setSchedulesLoadError(error.message);
         return;
       }
 
+      setSchedulesLoadError(null);
       setSchedules(data ?? []);
     };
 
@@ -130,19 +135,26 @@ export default function Home() {
     downloadMatchesCsv(matches);
   };
 
-  const handleDeleteSchedule = async (id: string) => {
-    const ok = window.confirm("この予定を削除しますか？");
-    if (!ok) return;
+  const handleConfirmDeleteSchedule = async () => {
+    if (!scheduleDeleteTarget) return;
+    setIsDeletingSchedule(true);
+    setScheduleDeleteError(null);
 
-    const { error } = await supabase.from("schedules").delete().eq("id", id);
+    const { error } = await supabase
+      .from("schedules")
+      .delete()
+      .eq("id", scheduleDeleteTarget.id);
 
     if (error) {
-      alert("削除に失敗しました。");
       console.error(error);
+      setScheduleDeleteError("削除に失敗しました。通信環境をご確認のうえ、もう一度お試しください。");
+      setIsDeletingSchedule(false);
       return;
     }
 
-    setSchedules((prev) => prev.filter((schedule) => schedule.id !== id));
+    setSchedules((prev) => prev.filter((schedule) => schedule.id !== scheduleDeleteTarget.id));
+    setIsDeletingSchedule(false);
+    setScheduleDeleteTarget(null);
   };
 
   const hasMatches = !!matches && matches.length > 0;
@@ -172,7 +184,6 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-x-hidden bg-[#07131f] text-white">
-      <Toast message={toastMessage} />
       {/* ambient glow for a premium feel */}
       <div className="pointer-events-none absolute -top-32 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-cyan-500/25 blur-[100px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.04),transparent_60%)]" />
@@ -275,8 +286,22 @@ export default function Home() {
                   📅 今後の担当試合
                 </p>
 
+                {scheduleDeleteError && (
+                  <p
+                    role="alert"
+                    aria-live="assertive"
+                    className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400"
+                  >
+                    {scheduleDeleteError}
+                  </p>
+                )}
+
                 <div className="space-y-3">
-                  {schedules.length === 0 ? (
+                  {schedulesLoadError ? (
+                    <p role="alert" aria-live="assertive" className="text-sm text-red-400">
+                      予定の取得に失敗しました。通信環境をご確認のうえ、ページを再読み込みしてください。
+                    </p>
+                  ) : schedules.length === 0 ? (
                     <p className="text-sm text-zinc-400">まだ予定が登録されていません。</p>
                   ) : (
                     schedules.map((schedule) => (
@@ -313,7 +338,8 @@ export default function Home() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteSchedule(schedule.id);
+                              setScheduleDeleteError(null);
+                              setScheduleDeleteTarget(schedule);
                             }}
                             className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-400 hover:bg-red-500/30"
                           >
@@ -600,6 +626,18 @@ export default function Home() {
           </a>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={scheduleDeleteTarget !== null}
+        title="この予定を削除しますか？"
+        targetName={scheduleDeleteTarget?.title || undefined}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeletingSchedule}
+        onConfirm={handleConfirmDeleteSchedule}
+        onCancel={() => setScheduleDeleteTarget(null)}
+      />
     </div>
   );
 }

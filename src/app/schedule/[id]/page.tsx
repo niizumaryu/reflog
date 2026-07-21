@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   deleteSchedule,
   formatScheduleDate,
@@ -41,6 +42,7 @@ export default function ScheduleDetailPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -61,11 +63,6 @@ export default function ScheduleDetailPage() {
 
   const handleDelete = async () => {
     if (!schedule) return;
-    const confirmed = window.confirm(
-      "この予定を削除しますか？この操作は取り消せません。",
-    );
-    if (!confirmed) return;
-
     setDeleteError(null);
     setIsDeleting(true);
     try {
@@ -75,6 +72,7 @@ export default function ScheduleDetailPage() {
       console.error(error);
       setDeleteError("削除に失敗しました。もう一度お試しください。");
       setIsDeleting(false);
+      setIsConfirmOpen(false);
     }
   };
 
@@ -184,13 +182,25 @@ export default function ScheduleDetailPage() {
         </Link>
         <button
           type="button"
-          onClick={handleDelete}
+          onClick={() => setIsConfirmOpen(true)}
           disabled={isDeleting}
           className="h-14 w-full rounded-xl border border-red-500/40 bg-red-500/10 text-base font-semibold tracking-wide text-red-400 transition active:scale-[0.98] active:bg-red-500/20 disabled:opacity-50"
         >
           {isDeleting ? "削除中..." : "削除する"}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="この予定を削除しますか？"
+        targetName={schedule.title || undefined}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

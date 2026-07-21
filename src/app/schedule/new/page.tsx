@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { queueToast } from "@/components/Toast";
 import { saveSchedule } from "@/lib/schedules";
 import { LONG_TEXT_MAX, SHORT_TEXT_MAX } from "@/lib/inputLimits";
 import { isSessionExpiredError } from "@/lib/sessionError";
@@ -38,7 +39,7 @@ export default function NewSchedulePage() {
     setLoading(true);
     try {
       await saveSchedule({ title, date, time, place, memo });
-      alert("予定を保存しました！");
+      queueToast("予定を保存しました");
       router.push("/schedule");
     } catch (error) {
       console.error(error);

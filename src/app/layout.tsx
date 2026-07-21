@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { NotificationPermissionPrompt } from "@/components/notifications/NotificationPermissionPrompt";
 import { ProfileGuard } from "@/components/ProfileGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { GlobalToast } from "@/components/Toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -56,6 +57,7 @@ export default function RootLayout({
         <AuthProvider>
           <ProfileGuard />
           <NotificationPermissionPrompt />
+          <GlobalToast />
           {children}
         </AuthProvider>
       </body>

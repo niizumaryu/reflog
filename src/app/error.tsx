@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportError } from "@/lib/observability/errorReporter";
 
 export default function ErrorPage({
   error,
@@ -11,7 +12,7 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Unhandled route error:", error);
+    reportError(error, { boundary: "route" });
   }, [error]);
 
   return (

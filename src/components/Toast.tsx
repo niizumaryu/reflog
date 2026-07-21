@@ -36,11 +36,23 @@ export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center px-4">
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center px-4"
+    >
       <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-orange-500/40 bg-zinc-900/95 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_-5px_rgba(0,0,0,0.6)]">
         <span className="h-2 w-2 rounded-full bg-orange-500" />
         {message}
       </div>
     </div>
   );
+}
+
+// Mounted once in the root layout so a toast queued via queueToast() on any
+// page (e.g. before a redirect) is shown on whichever page the user lands on,
+// not only when that specific page happens to render <Toast>.
+export function GlobalToast() {
+  const message = useQueuedToast();
+  return <Toast message={message} />;
 }

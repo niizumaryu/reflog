@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { ProfileAvatar } from "@/components/AvatarIcons";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { NotificationToggle } from "@/components/notifications/NotificationToggle";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import { downloadMatchesCsv } from "@/lib/csv";
 import { getMatches } from "@/lib/matches";
 import { createClient } from "@/lib/supabase/client";
@@ -84,43 +86,6 @@ export default function SettingsPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!isConfirmOpen) return;
-    cancelButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setIsConfirmOpen(false);
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    const trigger = deleteTriggerRef.current;
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      trigger?.focus();
-    };
-  }, [isConfirmOpen]);
 
   const handleExportCsv = async () => {
     setError(null);
@@ -353,6 +318,12 @@ export default function SettingsPage() {
           </p>
           <SettingsRow href="/terms" label="利用規約" />
           <SettingsRow href="/privacy" label="プライバシーポリシー" />
+          <SettingsRow
+            href={`mailto:${CONTACT_EMAIL}`}
+            label="お問い合わせ"
+            description={CONTACT_EMAIL}
+            external
+          />
         </div>
 
         <div className="space-y-3">
@@ -368,7 +339,6 @@ export default function SettingsPage() {
             {isLoggingOut ? "ログアウト中..." : "ログアウト"}
           </button>
           <button
-            ref={deleteTriggerRef}
             type="button"
             onClick={handleDeleteAccount}
             disabled={isDeleting}
@@ -388,45 +358,16 @@ export default function SettingsPage() {
         </div>
       </main>
 
-      {isConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-confirm-title"
-            className="w-full max-w-sm space-y-5 rounded-t-3xl border border-white/10 bg-zinc-950 p-6 sm:rounded-3xl"
-          >
-            <div className="space-y-2 text-center">
-              <h2 id="delete-confirm-title" className="text-base font-bold text-white">
-                本当に削除しますか？
-              </h2>
-              <p className="text-xs leading-relaxed text-zinc-400">
-                アカウントを削除すると、試合記録・年間目標・動画・通知設定など、すべてのデータが完全に削除され、元に戻すことはできません。
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="flex h-12 w-full items-center justify-center rounded-xl bg-red-500 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
-              >
-                {isDeleting ? "削除中..." : "削除する"}
-              </button>
-              <button
-                ref={cancelButtonRef}
-                type="button"
-                onClick={() => setIsConfirmOpen(false)}
-                disabled={isDeleting}
-                className="flex h-12 w-full items-center justify-center rounded-xl border border-white/15 text-sm font-semibold text-white transition active:bg-white/10 disabled:opacity-60"
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="本当に削除しますか？"
+        description="アカウントを削除すると、試合記録・年間目標・動画・通知設定など、すべてのデータが完全に削除され、元に戻すことはできません。"
+        confirmLabel="削除する"
+        confirmingLabel="削除中..."
+        isConfirming={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }
