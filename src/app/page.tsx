@@ -28,6 +28,7 @@ import {
   PositionPieChart,
 } from "@/components/charts/dynamic";
 import { PieChart as PieChartIcon } from "lucide-react";
+import { Accordion } from "@/components/Accordion";
 import BadgePreviewCard from "@/components/home/BadgePreviewCard";
 import GrowthPreviewCard from "@/components/home/GrowthPreviewCard";
 import HomeHeader from "@/components/home/HomeHeader";
@@ -234,6 +235,8 @@ export default function Home() {
 
           <TodayAdviceCard advice={todayAdvice} />
 
+          <RecordEntryPoints />
+
           {matchesLoadError ? (
             <LoadErrorBanner
               rawMessage={matchesLoadError}
@@ -376,69 +379,71 @@ export default function Home() {
 
               <GrowthPreviewCard matches={matches} />
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  📊 月別試合数
-                </p>
-                <MonthlyMatchesBarChart data={monthlyCounts} />
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  自己評価平均
-                </p>
-                <p className="text-3xl font-black text-cyan-500">
-                  {averages ? averages.overall.toFixed(1) : "0.0"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  📈 自己評価推移
-                </p>
-                <div className="mt-2">
-                  <MonthlyRatingLineChart data={getMonthlyAverageRatings(matches)} />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  <PieChartIcon className="h-4 w-4 text-cyan-400" />
-                  ポジション割合
-                </p>
-                <PositionPieChart referee={refereeCount} assistant={assistantCount} unset={unsetCount} />
-              </div>
-
-              {keywords.length > 0 && (
+              <Accordion title="📊 詳細な統計を見る">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                    よく使うキーワード
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                    📊 月別試合数
                   </p>
-                  {keywordRanking.length > 0 && (
-                    <div className="mb-3 space-y-1 text-sm">
-                      {keywordRanking.map(([word, count], index) => (
-                        <p key={word}>
-                          {index === 0 && "🥇 "}
-                          {index === 1 && "🥈 "}
-                          {index === 2 && "🥉 "}
-                          {word} ×{count}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {keywords.map(({ word, count }) => (
-                      <span
-                        key={word}
-                        className="flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-white"
-                      >
-                        {word}
-                        <span className="text-cyan-500">×{count}</span>
-                      </span>
-                    ))}
+                  <MonthlyMatchesBarChart data={monthlyCounts} />
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                    自己評価平均
+                  </p>
+                  <p className="text-3xl font-black text-cyan-500">
+                    {averages ? averages.overall.toFixed(1) : "0.0"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                    📈 自己評価推移
+                  </p>
+                  <div className="mt-2">
+                    <MonthlyRatingLineChart data={getMonthlyAverageRatings(matches)} />
                   </div>
                 </div>
-              )}
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                    <PieChartIcon className="h-4 w-4 text-cyan-400" />
+                    ポジション割合
+                  </p>
+                  <PositionPieChart referee={refereeCount} assistant={assistantCount} unset={unsetCount} />
+                </div>
+
+                {keywords.length > 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                      よく使うキーワード
+                    </p>
+                    {keywordRanking.length > 0 && (
+                      <div className="mb-3 space-y-1 text-sm">
+                        {keywordRanking.map(([word, count], index) => (
+                          <p key={word}>
+                            {index === 0 && "🥇 "}
+                            {index === 1 && "🥈 "}
+                            {index === 2 && "🥉 "}
+                            {word} ×{count}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {keywords.map(({ word, count }) => (
+                        <span
+                          key={word}
+                          className="flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-white"
+                        >
+                          {word}
+                          <span className="text-cyan-500">×{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Accordion>
 
               <BadgePreviewCard
                 recentBadges={recentBadges}
@@ -495,7 +500,6 @@ export default function Home() {
         <div className="w-full max-w-sm flex-1" />
 
         <div className="w-full max-w-sm space-y-4">
-          <RecordEntryPoints />
           <Link
             href="/matches"
             className="flex h-14 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 text-base font-semibold tracking-wide text-white backdrop-blur transition active:scale-[0.98] active:bg-white/10"

@@ -273,3 +273,44 @@
 ## テスト
 
 新規テストファイル: `src/lib/notifications/pushEndpoint.test.ts`(6ケース)。既存119件(20ファイル)と合わせて計125件(21ファイル)、全て成功。`npm run lint`・`npx tsc --noEmit`・`npm run build`・`git diff --check`すべて成功を確認済み。
+
+---
+
+# 6巡目監査(2026-07-21実施、商用化前土台強化・round 6)
+
+5巡目までの内容を「最大60点の途中結果」として引き継いだ。開始時点で5巡目の変更(push endpoint SSRF対策等)が未コミットのまま作業ツリーに残っていることをまず確認し、内容がdocsの記録と一致すること・秘密情報を含まないこと・lint/型チェック/テスト125件/buildが全て成功することを検証したうえで、安全なチェックポイントとして先にコミットした。今回は新機能の無計画な追加ではなく、商用サービスとして公開する前の土台(動画保存コスト対策・ホーム画面の情報設計・運用ドキュメント)を優先して監査・実装した。
+
+## 実装(P2相当・ロードマップ必須項目)
+
+### 原動画の保持期限削除・孤立アップロード対策の土台
+
+- **問題**: ロードマップの「動画は一時保存→解析→結果保存→一定期間後に原動画削除」という方針に対し、実装は「アップロード→解析→無期限保存」のままだった。孤立アップロード(Storageへのアップロードは成功したが、ブラウザが閉じる等で`video_analyses`行の作成前に処理が中断したファイル)を検出・削除する仕組みも存在しなかった。将来的にユーザー数・動画数が増えると、Storage容量・コストが無制限に増加するリスクがある。
+- **対応状況**: 判定ロジックと実行エンドポイントの土台を実装(**本番での自動実行は有効化していない**)。
+  - `src/lib/video-analysis/retention.ts`: 完了済み解析(`completed`/`completed_insufficient_quality`)がプランごとの`retention_days`を超えたら原動画の削除対象と判定する純粋関数。`failed`(再試行が原動画を必要とする)・進行中・既に削除済みの行は対象外。単体テスト9ケース。
+  - `src/lib/video-analysis/orphanUploads.ts`: Storage上にあるが対応するDB行がないファイルを検出する純粋関数。アップロード直後の誤検出を防ぐため24時間の猶予期間を設定。単体テスト5ケース。
+  - `src/lib/video-analysis/videoMaintenance.ts`/`videoMaintenanceDeps.ts`: 上記の判定をStorage/DBへのI/Oに繋げる実行層。Supabase依存を`videoMaintenanceDeps.ts`側に分離し、`videoMaintenance.ts`はテスト時にSupabase(`server-only`)を一切importしなくて済むようにした。dry-run対応・エラーは個別に収集して次回再試行可能な状態を保つ(Storage削除成功後にDB更新が失敗した場合も、次回はすでに存在しないファイルへの削除がSupabase Storageでは成功扱いになるため無限リトライにならない)。単体テスト11ケース。
+  - `POST /api/cron/video-maintenance`(新規): `/api/cron/notifications`と同じfail-closedな`CRON_SECRET`認証+レート制限。**既定で`dryRun=true`**(明示的に`?dryRun=false`を指定しない限り何も削除しない)。`vercel.json`の`crons`には**意図的に未登録**(実データの動画を不可逆的に削除するため、自動スケジュール実行の有効化は運営者の判断に委ねた)。単体テスト6ケース。
+  - `supabase/migrations/20260721_add_video_retention.sql`(新規、**本番未適用**): `plan_limits.retention_days`(free=30日・pro=90日・admin=無期限を提案値として追加)・`video_analyses.original_video_deleted_at`。`supabase/schema.sql`にも同内容を反映済み。
+  - `src/lib/supabase/storageCleanup.ts`に読み取り専用の再帰リスト関数`listAllFilePaths()`を追加(孤立ファイル検出用)。実装中、バケットルート(空prefix)から呼んだ場合にパスの先頭に不要な`/`が付く既存パターンのバグを発見・修正(この関数は新規追加のため実害はなし)。
+  - 運用手順書 `docs/video-retention-ops.md`(新規)を作成し、有効化する場合の具体的な手順(migration適用→retention_days確認→dry-run実行→本番実行→cron登録)とdry-run結果の確認方法を明記。`docs/known-limitations.md`にも要約を追記。
+
+## PHASE3: ホーム画面の情報設計整理
+
+- **問題**: ホーム画面(`src/app/page.tsx`)が単一の縦スクロールに約20セクションを均等な重みで積み上げる構成になっており、ロードマップが最優先とする「素早い記録追加ボタン」(`RecordEntryPoints`)が画面最下部に配置されていた。詳細な統計(月別試合数・自己評価推移・ポジション割合・キーワードランキング)も常時全展開されており、情報量が多すぎた。
+- **対応状況**: 対応済み(既存デザイン・機能は維持し、配置と表示段階のみ変更)。
+  - `RecordEntryPoints`(⚡30秒で記録する/詳しく記録する)を、通知状況・今日のReflog・AIアドバイスの直下(画面上部)に移動。画面下部にあった重複配置は削除。
+  - 月別試合数グラフ・自己評価平均・自己評価推移グラフ・ポジション割合・よく使うキーワードを、新規の`src/components/Accordion.tsx`(ネイティブ`<details>/<summary>`ベース、JS状態管理なし・キーボード操作可能・`prefers-reduced-motion`と衝突しない)でまとめ、「📊 詳細な統計を見る」の下に折りたたみ表示にした。
+- **残る課題**: ブラウザでの実機確認は本セッションでは実施できていない(このsandbox環境にブラウザ操作ツールがなく、ホーム画面は認証必須ページのためcurlでの表示確認もできない)。`npm run build`による静的プリレンダー成功・型チェック・lintの通過は確認済みだが、視覚的な確認は次回、実際にログインできる環境で行うことを推奨する。
+
+## 追加監査(発見に至らず・既存対応を再確認)
+
+- `TODO`/`FIXME`/`HACK`/裸の`@ts-ignore`/実質的な`any`/`console.log`: 引き続き0件。
+- `eslint-disable`: 5箇所すべて既存の妥当な理由によるもの(確認済み、変更なし)。
+- 秘密鍵・Service Role Key・VAPID秘密鍵のクライアント露出: なし(server-onlyファイルのみで使用)。
+- 法的ページの連絡先メールアドレス: 運営者本人の実アドレスであり、ダミー事業者情報の記載なし。
+- 壊れた動画・0バイト動画のアップロード: `extractVideoMetadata`が`loadedmetadata`イベントを待ち、失敗時(`error`イベントまたは15秒タイムアウト)は例外を投げてアップロード処理自体を中止する設計を確認(既存実装、今回変更なし)。
+- ネイティブ`alert()`/`confirm()`の残存(7箇所): 5巡目で発見済み・P2として一覧化済みの項目と一致することを再確認。今回も未対応(視覚確認を伴うUI変更のため見送り、次回優先課題とする)。
+
+## テスト
+
+新規テストファイル: `src/lib/video-analysis/retention.test.ts`(9ケース)・`src/lib/video-analysis/orphanUploads.test.ts`(5ケース)・`src/lib/video-analysis/videoMaintenance.test.ts`(11ケース)・`src/app/api/cron/video-maintenance/route.test.ts`(5ケース)。既存の`src/lib/supabase/storageCleanup.test.ts`に3ケース追加。既存160件(25ファイル)全て成功。`npm run lint`・`npx tsc --noEmit`・`npm run build`すべて成功を確認済み(詳細は本ラウンドの最終報告を参照)。
