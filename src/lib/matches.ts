@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_MATCHES_PER_FETCH } from "@/lib/queryLimits";
 
@@ -201,10 +202,7 @@ export async function getMatches(): Promise<MatchRecord[]> {
 
 export async function saveMatch(input: NewMatchInput): Promise<MatchRecord> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("matches")
@@ -240,24 +238,31 @@ export async function getMatchById(
   return data ? rowToMatchRecord(data) : undefined;
 }
 
+// Thrown instead of surfacing the raw Postgrest error when the update
+// matches zero rows (record deleted from another tab/device since this
+// page loaded it, or it never belonged to this user). Without this,
+// .single() throws "JSON object requested, multiple (or no) rows
+// returned" straight through to the UI — see
+// src/app/matches/[id]/edit/page.tsx, mirrors SCHEDULE_NOT_FOUND_MESSAGE
+// in src/lib/schedules.ts.
+export const MATCH_NOT_FOUND_MESSAGE =
+  "この試合記録は見つかりませんでした。既に削除されている可能性があります。";
+
 export async function updateMatch(
   id: string,
   input: NewMatchInput,
 ): Promise<MatchRecord> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("matches")
     .update({ ...inputToRow(input, user.id), updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select()
-    .single();
+    .select();
   if (error) throw error;
-  return rowToMatchRecord(data);
+  if (!data || data.length === 0) throw new Error(MATCH_NOT_FOUND_MESSAGE);
+  return rowToMatchRecord(data[0]);
 }
 
 export async function deleteMatch(id: string): Promise<void> {

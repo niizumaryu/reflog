@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import type { NotificationType } from "@/lib/notifications/config";
 
@@ -133,10 +134,7 @@ export type NewNotificationInput = {
 
 export async function createNotification(input: NewNotificationInput): Promise<void> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { error } = await supabase.from("notifications").insert({
     user_id: user.id,

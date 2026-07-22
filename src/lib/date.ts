@@ -10,3 +10,12 @@ export function jstDateString(date: Date = new Date()): string {
   // en-CA gives an unambiguous YYYY-MM-DD format.
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(date);
 }
+
+// Same JST-is-the-only-timezone assumption as jstDateString above, but in
+// the other direction: given a JST wall-clock date + hour + minute (as
+// typed into a schedule form), returns the UTC instant it corresponds to.
+// JST is a fixed UTC+9 offset (no DST), so this is a plain arithmetic
+// conversion rather than an Intl lookup.
+export function jstWallClockToUtcMs(dateStr: string, hour: number, minute: number): number {
+  return Date.parse(`${dateStr}T00:00:00Z`) + (hour * 60 + minute) * 60_000 - 9 * 60 * 60_000;
+}

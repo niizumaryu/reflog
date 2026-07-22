@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_SCHEDULES_PER_FETCH } from "@/lib/queryLimits";
 
@@ -81,10 +82,7 @@ export async function saveSchedule(
   input: NewScheduleInput,
 ): Promise<ScheduleRecord> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("schedules")

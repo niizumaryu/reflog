@@ -1,4 +1,5 @@
 import type { DefaultAvatarKey } from "@/components/AvatarIcons";
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 
 export type AvatarType = "default" | "custom";
@@ -88,10 +89,7 @@ export async function updateProfile(input: Profile): Promise<void> {
   if (usernameError) throw new Error(usernameError);
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
@@ -144,10 +142,7 @@ export async function uploadAvatarImage(file: File): Promise<string> {
   if (validationError) throw new Error(validationError);
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const extension = AVATAR_EXTENSION_BY_MIME_TYPE[file.type] || "jpg";
   const path = `${user.id}/${Date.now()}.${extension}`;

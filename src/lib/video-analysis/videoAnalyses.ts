@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_VIDEO_ANALYSES_PER_FETCH } from "@/lib/queryLimits";
 import { MATCH_VIDEOS_BUCKET } from "@/lib/video-analysis/constants";
@@ -104,10 +105,7 @@ export async function createVideoAnalysis(
   input: NewVideoAnalysisInput,
 ): Promise<VideoAnalysisRecord> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("video_analyses")
@@ -199,10 +197,7 @@ export async function saveQualityMetrics(
   reasons: string[],
 ): Promise<QualityMetrics> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("analysis_quality_metrics")
@@ -361,10 +356,7 @@ export async function saveFeedback(
   input: NewFeedbackInput,
 ): Promise<FeedbackEntry> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { data, error } = await supabase
     .from("analysis_feedback")

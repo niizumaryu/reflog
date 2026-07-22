@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import { PLAN_LABELS } from "@/lib/video-analysis/constants";
 import type { PlanLimit, PlanType, UsageSummary } from "@/lib/video-analysis/types";
@@ -63,10 +64,7 @@ export function computeUsageSummary(params: {
 
 export async function getUsageSummary(): Promise<UsageSummary> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const [{ data: profile, error: profileError }, { data: limitsData, error: limitsError }] =
     await Promise.all([

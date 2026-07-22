@@ -107,6 +107,19 @@ REFLOGはPWA(Webアプリ)として実装されており、Next.jsの `manifest.
 - **有効化していないもの**: 本番Supabaseへのmigration適用、`vercel.json` への自動cron登録、実データに対する`dryRun=false`実行。いずれも運営者が判断するまで何も削除されません。
 - 詳しい手順・安全確認方法は [`docs/video-retention-ops.md`](./video-retention-ops.md) を参照してください。
 
+## 14a. Round 8(2026-07-22実施)で対応した項目・今後の課題
+
+詳細は [`docs/audit-remediation-report.md`](./audit-remediation-report.md) の「Round 8」セクションを参照してください。Round 5監査で発見済みだったが未対応のまま残っていたP2項目(`video_analyses.match_id` の所有権検証トリガー欠如・cron `no_record_reminder` の同日複数試合誤反応・Service Workerの非2xxキャッシュ・通知許可の事前説明欠如)と、Round 3から見送られ続けていた認証ガード14箇所の重複(`requireUser()` への統合)に対応しました。
+
+- 新規migration `supabase/migrations/20260722_enforce_video_analysis_match_ownership.sql` は、これまでのRound同様**本番未適用**です。
+- Service Workerの `CACHE_VERSION` を `reflog-v1` から `reflog-v2` に更新しました(非2xxレスポンスをキャッシュしない挙動変更を確実に反映させるため)。
+
+今回も対応を見送った項目(将来対応):
+
+- トグルスイッチのタップ領域28×48px(WCAG AA基準は満たすが44px統一からは外れる)は、Round 4・6と同じ理由(ブラウザでの視覚確認ができない環境のため)で今回も見送りました。
+- `src/app/report/page.tsx`(863行)の分割は見送りました。
+- Stripe/PayPay/Apple課金/Google課金・ネイティブストア配信・チーム管理/大会管理/ランキング/コミュニティ等のロードマップ項目は未着手です(設計ドキュメントのみ既存)。
+
 ## 14. Round 7(2026-07-21実施)で対応した項目・今後の課題
 
 詳細は [`docs/audit-remediation-report.md`](./audit-remediation-report.md) の「Round 7」

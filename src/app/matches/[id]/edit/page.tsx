@@ -10,6 +10,7 @@ import {
   deleteMatch,
   getMatchById,
   getMatches,
+  MATCH_NOT_FOUND_MESSAGE,
   updateMatch,
   type MatchRecord,
   type NewMatchInput,
@@ -62,11 +63,16 @@ export default function EditMatchPage() {
       router.push(`/matches/${id}`);
     } catch (saveError) {
       setIsSaving(false);
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "更新に失敗しました。もう一度お試しください。",
-      );
+      const message = saveError instanceof Error ? saveError.message : "";
+      if (message === MATCH_NOT_FOUND_MESSAGE) {
+        // Deleted from another tab/device since this page loaded — reuse
+        // the same "notfound" screen the initial load shows, rather than
+        // implying the save itself failed and inviting a retry that will
+        // fail identically forever.
+        setLoadState("notfound");
+        return;
+      }
+      setError(message || "更新に失敗しました。もう一度お試しください。");
     }
   };
 

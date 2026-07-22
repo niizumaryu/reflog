@@ -1,4 +1,4 @@
-const CACHE_VERSION = "reflog-v1";
+const CACHE_VERSION = "reflog-v2";
 const APP_SHELL = [
   "/",
   "/matches",
@@ -43,10 +43,16 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const responseClone = response.clone();
-        caches
-          .open(CACHE_VERSION)
-          .then((cache) => cache.put(request, responseClone));
+        // Only cache successful, same-origin, non-opaque responses. Without
+        // this check, 404/500 error pages and redirect responses got cached
+        // too — a user hitting a transient 500 would then be served that
+        // same 500 from cache the next time they went offline.
+        if (response.ok && response.type === "basic") {
+          const responseClone = response.clone();
+          caches
+            .open(CACHE_VERSION)
+            .then((cache) => cache.put(request, responseClone));
+        }
         return response;
       })
       .catch(() =>

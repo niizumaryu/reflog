@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 
 export const DEFAULT_ANNUAL_GOAL = 100;
@@ -18,10 +19,7 @@ export async function setAnnualGoal(
   targetMatchCount: number,
 ): Promise<void> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { error } = await supabase
     .from("annual_goals")

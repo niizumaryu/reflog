@@ -1,9 +1,12 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/client";
 import { DEFAULT_MATCH_DAY_TIME, DEFAULT_NOTIFY_TIME } from "@/lib/notifications/config";
 import { isValidPushEndpoint } from "@/lib/notifications/pushEndpoint";
 import type { Database } from "@/lib/supabase/types";
 
 const PROMPTED_STORAGE_KEY = "reflog_notification_prompted";
+const SOFT_DISMISSED_STORAGE_KEY = "reflog_notification_soft_dismissed_at";
+const SOFT_DISMISS_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 // PostgREST's "table not found in schema cache" error — thrown when the
 // notification_settings table hasn't been created in Supabase yet. Treated
@@ -42,6 +45,29 @@ export function markPromptedForNotifications(): void {
   window.localStorage.setItem(PROMPTED_STORAGE_KEY, "1");
 }
 
+// The browser's native permission dialog can only ever be shown once
+// meaningfully — after a user denies it, browsers block re-prompting
+// without a manual settings change, and a cold ask with no context tends
+// to get reflexively denied. So the app shows its own explanatory card
+// first; only a user who clicks "許可する" there triggers the native
+// dialog (see NotificationPermissionPrompt.tsx). A user who dismisses the
+// card is not native-prompted and not permanently opted out — the card
+// can reappear on a later visit, but not before this cooldown elapses, so
+// it doesn't nag on every page load in the same week.
+export function isNotificationSoftAskDismissed(): boolean {
+  if (typeof window === "undefined") return true;
+  const raw = window.localStorage.getItem(SOFT_DISMISSED_STORAGE_KEY);
+  if (!raw) return false;
+  const dismissedAt = Number(raw);
+  if (!Number.isFinite(dismissedAt)) return false;
+  return Date.now() - dismissedAt < SOFT_DISMISS_COOLDOWN_MS;
+}
+
+export function markNotificationSoftAskDismissed(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SOFT_DISMISSED_STORAGE_KEY, String(Date.now()));
+}
+
 // No row yet = notifications default to on (matches the "on by default once
 // permission is granted" behavior of the first-run prompt).
 export async function getNotificationEnabled(): Promise<boolean> {
@@ -68,10 +94,7 @@ export async function getNotificationEnabled(): Promise<boolean> {
 
 export async function setNotificationEnabled(enabled: boolean): Promise<void> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const { error } = await supabase.from("notification_settings").upsert({
     user_id: user.id,
@@ -90,10 +113,7 @@ export async function savePushSubscription(
   subscription: PushSubscription,
 ): Promise<void> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
@@ -190,10 +210,7 @@ export async function updateNotificationSettings(
   patch: Partial<NotificationSettings>,
 ): Promise<void> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("ログインが必要です");
+  const user = await requireUser(supabase);
 
   const row: Database["public"]["Tables"]["notification_settings"]["Insert"] = {
     user_id: user.id,

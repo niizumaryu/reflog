@@ -7,10 +7,9 @@ import {
   DEFAULT_MATCH_DAY_TIME,
   DEFAULT_NOTIFY_TIME,
   NOTIFICATION_CONTENT,
-  NO_RECORD_DEFAULT_START_HOUR,
-  NO_RECORD_REMINDER_HOURS_AFTER,
   type NotificationType,
 } from "@/lib/notifications/config";
+import { isNoRecordReminderDue } from "@/lib/notifications/noRecordReminder";
 import { checkRateLimit, clientIdentifier } from "@/lib/rateLimit";
 import { isValidPushEndpoint } from "@/lib/notifications/pushEndpoint";
 
@@ -49,14 +48,6 @@ function addDays(dateStr: string, days: number): string {
 
 function hourOf(timeStr: string): number {
   return Number(timeStr.slice(0, 2));
-}
-
-// Schedules store date/time as plain values the user typed in, with no
-// explicit zone — same convention as the rest of the app, so they're
-// treated as JST wall-clock. JST is a fixed UTC+9 offset (no DST), so this
-// converts a JST wall-clock date+time directly to a UTC instant.
-function jstWallClockToUtcMs(dateStr: string, hour: number, minute: number): number {
-  return Date.parse(`${dateStr}T00:00:00Z`) + (hour * 60 + minute) * 60_000 - 9 * 60 * 60_000;
 }
 
 type EffectiveSettings = {
@@ -310,22 +301,21 @@ async function handle(request: NextRequest) {
       .in("scheduled_date", candidateDates);
     for (const schedule of (data ?? []) as ScheduleRow[]) {
       if (!schedule.scheduled_date) continue;
+      if (!isNoRecordReminderDue(schedule.scheduled_date, schedule.scheduled_time, nowMs)) continue;
 
-      const timeStr = schedule.scheduled_time
-        ? schedule.scheduled_time.slice(0, 5)
-        : `${String(NO_RECORD_DEFAULT_START_HOUR).padStart(2, "0")}:00`;
-      const [startHour, startMinute] = timeStr.split(":").map(Number);
-      const startMs = jstWallClockToUtcMs(schedule.scheduled_date, startHour, startMinute);
-      const thresholdMs = startMs + NO_RECORD_REMINDER_HOURS_AFTER * 60 * 60 * 1000;
-      if (nowMs < thresholdMs) continue;
-
-      const { data: existingMatch } = await admin
+      // limit(1) instead of maybeSingle(): a user can legitimately record
+      // more than one match on the same date (doubleheader), and
+      // maybeSingle() throws when more than one row matches, which would
+      // silently discard the error and leave existingMatches as null —
+      // causing a false "you haven't recorded this match" reminder even
+      // though a record exists.
+      const { data: existingMatches } = await admin
         .from("matches")
         .select("id")
         .eq("user_id", schedule.user_id)
         .eq("date", schedule.scheduled_date)
-        .maybeSingle();
-      if (existingMatch) continue;
+        .limit(1);
+      if (existingMatches && existingMatches.length > 0) continue;
 
       // sent_for_date is pinned to the schedule's own date (not "today"),
       // so this fires at most once ever per schedule no matter how many

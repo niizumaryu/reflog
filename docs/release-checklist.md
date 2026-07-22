@@ -16,6 +16,7 @@
 - [ ] 追加migration — `supabase/migrations/20260717_secure_function_search_path.sql`(トリガー関数のsearch_path明示化)を本番に適用済みか
 - [ ] 追加migration(2巡目監査) — `supabase/migrations/20260717_add_text_length_constraints.sql`(試合記録・プロフィール・スケジュール・動画タイトルへの文字数上限CHECK制約)を本番に適用済みか
 - [ ] 追加migration(6巡目監査) — `supabase/migrations/20260721_add_video_retention.sql`(`plan_limits.retention_days`・`video_analyses.original_video_deleted_at`)を本番に適用済みか。適用しただけでは何も削除されない(詳細・有効化手順は [`docs/video-retention-ops.md`](./video-retention-ops.md))
+- [ ] 追加migration(Round 8監査) — `supabase/migrations/20260722_enforce_video_analysis_match_ownership.sql`(`video_analyses.match_id` の所有権検証トリガー)を本番に適用済みか
 - [ ] Storage — `profile-icons`(公開読み取り)・`match-videos`(非公開)の各バケットが作成され、想定どおりのRLSポリシーが設定されている
 - [ ] Auth — メールログイン・Googleログインが本番のリダイレクトURL/Site URLで動作する(`Authentication > URL Configuration`)。パスワードリセット・確認メールのテンプレートも確認する
 - [ ] Push通知 — VAPIDキー(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`)と `CRON_SECRET` を本番環境に設定し、`/api/cron/notifications` が Vercel Cron から呼ばれることを確認する(`vercel.json`)。**2巡目監査でfail-closedに変更済み: `CRON_SECRET` が未設定の場合、このエンドポイントは常に401を返し、通知が一切送信されなくなります(以前のように「誰でも呼び出せる」ではなく「動かない」側に倒れますが、本番では必須設定である点は変わりません)。**
